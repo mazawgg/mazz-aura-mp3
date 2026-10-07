@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura | Advanced Audio Player by Mazaw</title>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #06b6d4;
+            /* Cyan 500 */
+            --secondary: #8b5cf6;
+            /* Violet 500 */
+            --bg-color: #0f172a;
+            --sidebar-width: 260px;
+            --bottom-nav-height: 70px;
+            --mini-player-height: 72px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            overflow: hidden;
+            height: 100dvh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Animated Mesh Gradient Background */
+        .bg-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.15), transparent 50%);
+            animation: mesh-shift 15s ease-in-out infinite alternate;
+        }
+
+        @keyframes mesh-shift {
+            0% {
+                transform: scale(1);
+            }
+
+            100% {
+                transform: scale(1.1);
+            }
+        }
+
+        /* Glassmorphism utility classes */
+        .glass {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-hover:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            appearance: none;
+            width: 100%;
+            background: transparent;
+            height: 6px;
+            border-radius: 999px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #fff;
+            margin-top: -4px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type=range]:hover::-webkit-slider-thumb {
+            transform: scale(1.3);
+        }
+
+        /* EQ Sliders */
+        .eq-slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            height: 200px;
+        }
+
+        .eq-slider-container input[type=range] {
+            transform: rotate(-90deg);
+            width: 140px;
+            margin: auto 0;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: max(20px, calc(var(--bottom-nav-height) + var(--mini-player-height) + 20px));
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(15, 23, 42, 0.9);
+            border-left: 4px solid var(--primary);
+            padding: 12px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .active-btn {
+            color: var(--primary);
+            filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.5));
+        }
+
+        .playing-indicator {
+            display: inline-flex;
+            gap: 2px;
+            align-items: flex-end;
+            height: 12px;
+        }
+
+        .playing-indicator span {
+            width: 3px;
+            background: var(--primary);
+            border-radius: 2px;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        .playing-indicator span:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .playing-indicator span:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes bounce {
+            0% {
+                height: 3px;
+            }
+
+            100% {
+                height: 12px;
+            }
+        }
+
+        .view-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            height: 100%;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .view-section.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Layout & Responsiveness */
+        #app-container {
+            display: flex;
+            height: 100dvh;
+            width: 100vw;
+            padding-bottom: 0;
+            /* Hapus padding bawah supaya mentok */
+        }
+
+        #sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            height: 100%;
+            /* Penuhi tinggi kontainer secara vertikal */
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 40;
+        }
+
+        #main-content {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--mini-player-height);
+            z-index: 45;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #mini-player.visible {
+            transform: translateY(0);
+        }
+
+        #full-player-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+            background-color: var(--bg-color);
+        }
+
+        #full-player-modal.open {
+            transform: translateY(0);
+        }
+
+        /* Modal Custom Box */
+        .custom-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .custom-modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Drag and Drop Overlay */
+        #dnd-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 4px dashed var(--primary);
+            margin: 20px;
+            border-radius: 20px;
+        }
+
+        #dnd-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        @media (max-width: 1024px) {
+            #app-container {
+                flex-direction: column;
+                padding-bottom: calc(var(--mini-player-height) + var(--bottom-nav-height));
+            }
+
+            #sidebar {
+                width: 100%;
+                height: var(--bottom-nav-height);
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                border-right: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                display: flex;
+                flex-direction: row;
+                justify-content: space-around;
+                align-items: center;
+                padding: 0;
+                z-index: 50;
+            }
+
+            .sidebar-logo,
+            .sidebar-label {
+                display: none;
+            }
+
+            .nav-item {
+                flex: 1;
+                justify-content: center;
+                padding: 12px 0 !important;
+            }
+
+            .nav-item i {
+                font-size: 24px !important;
+                margin: 0 !important;
+            }
+
+            #mini-player {
+                bottom: var(--bottom-nav-height);
+            }
+
+            #mini-player.visible {
+                transform: translateY(0);
+            }
+
+            .toast-container {
+                bottom: calc(var(--bottom-nav-height) + var(--mini-player-height) + 20px);
+            }
+        }
+
+        /* Kotak slider standar (Hidden & Transparan pas nutup) */
+        .volume-drawer {
+            display: flex;
+            align-items: center;
+            width: 0;
+            overflow: visible !important;
+            opacity: 0;
+            visibility: hidden;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, visibility 0.3s;
+            padding-left: 4px;
+        }
+
+        /* Saat di-desktop di-hover: Lebar kebuka, opacity-nya jadi 1 (bulatan putihnya baru nampak) */
+        @media (min-width: 640px) {
+            .volume-wrapper:hover .volume-drawer {
+                width: 104px;
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+
+        /* --- Khusus Mode Mobile: Vertikal --- */
+        @media (max-width: 640px) {
+            .volume-drawer {
+                position: absolute;
+                bottom: 70px;
+                right: -8;
+                width: 36px !important;
+                height: 0;
+                opacity: 0;
+                visibility: hidden;
+                background: rgba(15, 23, 42, 0.9);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 18px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, visibility 0.3s, padding 0.3s;
+            }
+
+            /* Saat diklik aktif di HP: Tinggi kebuka, opacity jadi 1 */
+            .volume-drawer.mobile-open {
+                height: 130px !important;
+                opacity: 1;
+                visibility: visible;
+                padding: 12px 0;
+            }
+
+            .volume-drawer input[type=range] {
+                transform: rotate(-90deg);
+                width: 100px !important;
+                margin: 0;
+            }
+        }
+
+        /* Efek Teks Berjalan */
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            width: 100%;
+        }
+
+        .marquee-text {
+            display: inline-block;
+        }
+
+        /* Hanya aktifkan animasi jika kelas 'is-long' ditambahkan */
+        .marquee-container.is-long .marquee-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee-scroll 8s linear infinite;
+        }
+
+        @keyframes marquee-scroll {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(-100%, 0);
+            }
+        }
+
+        /* Saat jeda 10 detik: Berhenti tepat di posisi awal (huruf pertama pas di pojok kiri layar & tampil full) */
+        .marquee-container.paused-at-edge .marquee-text {
+            animation-play-state: paused !important;
+            padding-left: 0 !important;
+            transform: translate(0, 0) !important;
+        }
+
+        /* Pause animasi saat kursor di-hover */
+        .marquee-container:hover .marquee-text {
+            animation-play-state: paused !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Create Playlist Modal -->
+    <div id="playlist-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-2">Create New Playlist</h3>
+            <p class="text-slate-400 text-sm mb-4">Give your playlist a memorable name.</p>
+            <input type="text" id="modal-playlist-name" placeholder="Playlist Name"
+                class="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors mb-6">
+            <div class="flex justify-end gap-3">
+                <button id="btn-cancel-playlist"
+                    class="px-4 py-2 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300">Cancel</button>
+                <button id="btn-confirm-playlist"
+                    class="px-5 py-2 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-lg shadow-violet-500/20">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Playlist Selector Modal -->
+    <div id="add-to-pl-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-2">Add to Playlist</h3>
+            <p class="text-slate-400 text-sm mb-4">Select a playlist to add this track.</p>
+            <div id="modal-playlists-container" class="flex flex-col gap-2 max-h-60 overflow-y-auto mb-6 pr-1">
+                <!-- Dynamic playlists option items render here -->
+            </div>
+            <div class="flex justify-end">
+                <button id="btn-cancel-add-pl"
+                    class="px-4 py-2 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Overlay -->
+    <div id="dnd-overlay">
+        <i class="ph ph-music-notes-plus text-6xl text-cyan-400 mb-4 animate-bounce"></i>
+        <h2 class="text-3xl font-bold text-white">Drop Audio Files Here</h2>
+        <p class="text-slate-400 mt-2">Instantly add them to your local library</p>
+    </div>
+
+    <div id="app-container">
+
+        <!-- Sidebar / Bottom Nav -->
+        <nav id="sidebar" class="glass flex flex-col justify-between p-4 h-full">
+            <div class="flex lg:flex-col gap-2 w-full" id="nav-menu">
+                <button data-target="view-home"
+                    class="nav-item active flex items-center px-4 py-3 rounded-xl transition-all bg-white/10 text-white font-medium">
+                    <i class="ph ph-house text-xl lg:mr-3 text-cyan-400"></i>
+                    <span class="sidebar-label">Home</span>
+                </button>
+                <button data-target="view-playlists"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-playlist text-xl lg:mr-3 text-violet-400"></i>
+                    <span class="sidebar-label">Playlists</span>
+                </button>
+                <button data-target="view-favorites"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-heart text-xl lg:mr-3 text-pink-400"></i>
+                    <span class="sidebar-label">Favorites</span>
+                </button>
+                <button data-target="view-equalizer"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-sliders-horizontal text-xl lg:mr-3 text-emerald-400"></i>
+                    <span class="sidebar-label">Equalizer</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="p-6 lg:p-10 relative">
+
+            <!-- Home View -->
+            <section id="view-home" class="view-section active">
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Your Library</h2>
+                        <p class="text-slate-400 text-sm">All imported offline and online tracks</p>
+                    </div>
+
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <div class="relative flex-grow sm:flex-grow-0">
+                            <i
+                                class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="search-input" placeholder="Search tracks..."
+                                class="w-full sm:w-64 glass-panel pl-10 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500 transition-colors">
+                        </div>
+                    </div>
+                </header>
+
+                <div class="flex flex-wrap gap-3 mb-8">
+                    <label
+                        class="cursor-pointer bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+                        <i class="ph ph-upload-simple text-lg"></i> Import Local Audio
+                        <input type="file" id="file-input" multiple accept="audio/*" class="hidden">
+                    </label>
+                    <button id="btn-show-url"
+                        class="glass-panel glass-hover px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-white">
+                        <i class="ph ph-link text-lg text-violet-400"></i> Add Stream URL
+                    </button>
+                </div>
+
+                <div id="url-input-container"
+                    class="hidden glass-panel p-4 rounded-xl mb-8 flex gap-3 animate-fade-in border border-white/10">
+                    <input type="text" id="url-input"
+                        placeholder="Enter audio URL (e.g., https://example.com/stream.mp3)"
+                        class="flex-grow bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors">
+                    <button id="btn-submit-url"
+                        class="bg-violet-500 hover:bg-violet-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+                </div>
+
+                <div class="flex flex-col gap-2" id="library-list">
+                    <!-- Library Tracks Render Here -->
+                </div>
+            </section>
+
+            <!-- Playlists View -->
+            <section id="view-playlists" class="view-section">
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Playlists</h2>
+                        <p class="text-slate-400 text-sm">Organize your music collection</p>
+                    </div>
+                    <button id="btn-open-create-playlist"
+                        class="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-violet-500/20 flex items-center gap-2">
+                        <i class="ph ph-plus text-lg"></i> New Playlist
+                    </button>
+                </header>
+
+                <div id="playlists-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Playlists Render Here -->
+                </div>
+
+                <!-- Playlist Details View (Hidden by default) -->
+                <div id="playlist-details" class="hidden mt-8">
+                    <div class="flex items-center gap-4 mb-6">
+                        <button id="btn-back-playlists"
+                            class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors">
+                            <i class="ph ph-arrow-left text-xl"></i>
+                        </button>
+                        <h3 id="active-playlist-title" class="text-2xl font-bold text-white">Playlist Name</h3>
+                    </div>
+                    <div class="flex flex-col gap-2" id="playlist-tracks-list">
+                        <!-- Active Playlist Tracks Render Here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Favorites View -->
+            <section id="view-favorites" class="view-section">
+                <header class="mb-8 flex items-center gap-3">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Favorites</h2>
+                        <p class="text-slate-400 text-sm">Tracks you love</p>
+                    </div>
+                </header>
+                <div class="flex flex-col gap-2" id="favorites-list">
+                    <!-- Favorite Tracks Render Here -->
+                </div>
+            </section>
+
+            <!-- Equalizer View -->
+            <section id="view-equalizer" class="view-section">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-white mb-1">Equalizer</h2>
+                    <p class="text-slate-400 text-sm">Fine-tune your audio experience (Web Audio API)</p>
+                </header>
+
+                <div class="glass-panel rounded-2xl p-6 border border-white/10 max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <span class="text-white font-medium">Presets</span>
+                        <select id="eq-presets"
+                            class="bg-slate-900 border border-white/20 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none">
+                            <option value="flat">Flat</option>
+                            <option value="bassBoost">Bass Boost</option>
+                            <option value="trebleBoost">Treble Boost</option>
+                            <option value="electronic">Electronic</option>
+                            <option value="vocal">Vocal</option>
+                        </select>
+                    </div>
+
+                    <div class="flex justify-between items-end gap-2 sm:gap-4 py-4" id="eq-bands-container">
+                        <!-- EQ sliders generated via JS -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Mini Player -->
+    <div id="mini-player"
+        class="glass cursor-pointer flex items-center px-4 gap-4 hover:bg-slate-800/80 transition-colors">
+        <!-- Progress Bar at the very top of mini player -->
+        <div class="absolute top-0 left-0 right-0 h-1 bg-white/10">
+            <div id="mini-progress" class="h-full bg-gradient-to-r from-cyan-500 to-violet-500" style="width: 0%"></div>
+        </div>
+
+        <div
+            class="w-12 h-12 rounded bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center shrink-0">
+            <i class="ph ph-music-notes text-2xl text-slate-400" id="mini-icon"></i>
+        </div>
+
+        <!-- Wadah Teks dengan Marquee -->
+        <div class="flex flex-col flex-grow overflow-hidden">
+            <div class="marquee-container" id="mini-title-container">
+                <span id="mini-title" class="text-white font-medium text-sm marquee-text">No Track Playing</span>
+            </div>
+            <span id="mini-artist" class="text-slate-400 text-xs truncate">--</span>
+        </div>
+
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0" id="mini-controls">
+            <!-- Tombol Prev Baru di Mini Player -->
+            <button id="mini-btn-prev" class="p-2 text-white hover:text-cyan-400 transition-colors">
+                <i class="ph-fill ph-skip-back text-xl"></i>
+            </button>
+            <button id="mini-btn-play" class="p-2 text-white hover:text-cyan-400 transition-colors">
+                <i class="ph-fill ph-play text-2xl" id="mini-icon-play"></i>
+                <i class="ph-fill ph-pause text-2xl hidden" id="mini-icon-pause"></i>
+            </button>
+            <button id="mini-btn-next" class="p-2 text-white hover:text-cyan-400 transition-colors">
+                <i class="ph-fill ph-skip-forward text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Full Player Modal -->
+    <div id="full-player-modal" class="glass">
+        <!-- Background Mesh specific to modal for consistency -->
+        <div class="bg-mesh opacity-50"></div>
+
+        <div class="w-full h-full flex flex-col p-6 lg:p-10 relative z-10 max-w-6xl mx-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-4">
+                <button id="btn-close-modal"
+                    class="p-2 rounded-full glass-panel hover:bg-white/10 transition-colors text-white">
+                    <i class="ph ph-caret-down text-2xl"></i>
+                </button>
+                <span class="text-xs font-medium tracking-widest uppercase text-slate-400">Now Playing</span>
+                <button class="p-2 opacity-0 cursor-default"><i class="ph ph-caret-down text-2xl"></i></button>
+                <!-- Spacer -->
+            </div>
+
+            <!-- Original Aura Visualizer & Track Info UI Ported Here -->
+            <div class="flex-1 flex flex-col items-center justify-center relative w-full">
+
+                <!-- Visualizer -->
+                <div
+                    class="relative w-full max-w-2xl aspect-video sm:aspect-[21/9] rounded-3xl overflow-hidden glass-panel flex items-center justify-center mb-6 group border border-white/10 shadow-2xl">
+                    <canvas id="visualizer" class="absolute inset-0 w-full h-full z-10"></canvas>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent z-0 pointer-events-none">
+                    </div>
+                    <div
+                        class="z-20 text-center opacity-50 transition-opacity flex flex-col items-center pointer-events-none">
+                        <i class="ph ph-waveform text-5xl mb-2 text-white/50"></i>
+                        <p class="text-xs font-medium tracking-widest uppercase text-white/50" id="visualizer-status">
+                            Visualizer</p>
+                    </div>
+                </div>
+
+                <!-- Track Info & Action Buttons -->
+                <div class="text-center w-full max-w-xl px-4 flex flex-col items-center overflow-hidden">
+                    <div class="marquee-container w-full" id="modal-title-container">
+                        <h2 id="track-title"
+                            class="text-2xl sm:text-4xl font-bold mb-2 text-white drop-shadow-md marquee-text">No Track
+                            Selected</h2>
+                    </div>
+                    <p id="track-artist"
+                        class="text-slate-400 font-medium text-sm sm:text-base tracking-wide uppercase truncate mb-4">
+                        Add media to begin</p>
+
+                    <!-- Love & Add to Playlist Buttons Inside Modal -->
+                    <div class="flex items-center gap-4">
+                        <button id="modal-btn-fav"
+                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-pink-400"
+                            title="Favorite">
+                            <i id="modal-icon-fav" class="ph ph-heart text-2xl"></i>
+                        </button>
+                        <button id="modal-btn-add-pl"
+                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-cyan-400"
+                            title="Add to Playlist">
+                            <i class="ph ph-plus text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playback Controls Area -->
+            <div class="w-full max-w-3xl mx-auto mt-4 flex flex-col gap-4">
+                <!-- Progress -->
+                <div class="w-full">
+                    <input type="range" id="progress-bar" value="0" min="0" max="100" step="0.1" class="w-full">
+                    <div class="flex justify-between text-xs text-slate-400 font-medium mt-1.5">
+                        <span id="time-current">0:00</span>
+                        <span id="time-total">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Main Controls Row -->
+                <div class="flex items-center justify-between">
+                    <!-- Left: Shuffle & Repeat -->
+                    <div class="flex items-center gap-2 sm:gap-4 w-1/3 justify-start">
+                        <button id="btn-shuffle"
+                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"
+                            title="Shuffle">
+                            <i class="ph ph-shuffle text-xl"></i>
+                        </button>
+                        <button id="btn-repeat"
+                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 relative"
+                            title="Repeat">
+                            <i class="ph ph-repeat text-xl"></i>
+                            <span id="repeat-badge"
+                                class="absolute -top-1 -right-1 text-[9px] bg-cyan-500 text-slate-900 font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">1</span>
+                        </button>
+                    </div>
+
+                    <!-- Center: Playback (Ukuran Lebih Kecil) -->
+                    <div class="flex items-center gap-4 sm:gap-6 w-1/3 justify-center">
+                        <button id="btn-prev"
+                            class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110">
+                            <i class="ph-fill ph-skip-back text-2xl"></i>
+                        </button>
+                        <button id="btn-play-pause"
+                            class="text-white hover:text-cyan-400 transition-colors transform hover:scale-110 active:scale-95 p-2">
+                            <i class="ph-fill ph-play text-4xl drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+                                id="icon-play"></i>
+                            <i class="ph-fill ph-pause text-4xl drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] hidden"
+                                id="icon-pause"></i>
+                        </button>
+                        <button id="btn-next"
+                            class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110">
+                            <i class="ph-fill ph-skip-forward text-2xl"></i>
+                        </button>
+                    </div>
+
+                    <!-- Right: Volume (Desktop: hover horizontal, Mobile: expand vertikal ke atas) -->
+                    <div class="flex items-center gap-2 volume-wrapper w-1/3 justify-end">
+                        <button id="btn-mute" class="text-slate-400 hover:text-white transition-colors p-2">
+                            <i class="ph ph-speaker-high text-xl" id="icon-volume"></i>
+                        </button>
+
+                        <!-- Kotak Drawer Volume -->
+                        <div id="volume-drawer" class="volume-drawer">
+                            <input type="range" id="volume-bar" value="100" min="0" max="100" class="w-24">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audio-player" crossorigin="anonymous"></audio>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            tracks: [], // { id, name, type: 'local'|'url', blob?, url?, isFavorite }
+            playlists: [], // { id, name, trackIds: [] }
+            currentPlaylistId: null, // If viewing a specific playlist
+            playbackQueue: [], // Array of track objects currently playing
+            currentIndex: -1,
+            isPlaying: false,
+            isShuffle: false,
+            repeatMode: 0, // 0: off, 1: all, 2: one
+            audioContextInitialized: false,
+            activeView: 'view-home',
+            trackToAddId: null
+        };
+
+        // --- DOM Elements ---
+        const DOM = {
+            audio: document.getElementById('audio-player'),
+            // Navigation
+            navBtns: document.querySelectorAll('.nav-item'),
+            views: document.querySelectorAll('.view-section'),
+            // Layout
+            miniPlayer: document.getElementById('mini-player'),
+            fullPlayerModal: document.getElementById('full-player-modal'),
+            btnCloseModal: document.getElementById('btn-close-modal'),
+            dndOverlay: document.getElementById('dnd-overlay'),
+            // Lists & Inputs
+            libraryList: document.getElementById('library-list'),
+            favoritesList: document.getElementById('favorites-list'),
+            playlistsGrid: document.getElementById('playlists-grid'),
+            playlistDetails: document.getElementById('playlist-details'),
+            activePlaylistTitle: document.getElementById('active-playlist-title'),
+            playlistTracksList: document.getElementById('playlist-tracks-list'),
+            btnBackPlaylists: document.getElementById('btn-back-playlists'),
+            fileInput: document.getElementById('file-input'),
+            btnShowUrl: document.getElementById('btn-show-url'),
+            urlInputContainer: document.getElementById('url-input-container'),
+            urlInput: document.getElementById('url-input'),
+            btnSubmitUrl: document.getElementById('btn-submit-url'),
+            searchInput: document.getElementById('search-input'),
+            // Modal Playlist Elements
+            playlistModal: document.getElementById('playlist-modal'),
+            btnOpenCreatePlaylist: document.getElementById('btn-open-create-playlist'),
+            modalPlaylistName: document.getElementById('modal-playlist-name'),
+            btnCancelPlaylist: document.getElementById('btn-cancel-playlist'),
+            btnConfirmPlaylist: document.getElementById('btn-confirm-playlist'),
+            // Add to Playlist Elements
+            addToPlModal: document.getElementById('add-to-pl-modal'),
+            modalPlaylistsContainer: document.getElementById('modal-playlists-container'),
+            btnCancelAddPl: document.getElementById('btn-cancel-add-pl'),
+            // Modal Player Action Buttons
+            modalBtnFav: document.getElementById('modal-btn-fav'),
+            modalIconFav: document.getElementById('modal-icon-fav'),
+            modalBtnAddPl: document.getElementById('modal-btn-add-pl'),
+            // Controls (Full & Mini)
+            btnPlayPause: document.getElementById('btn-play-pause'),
+            iconPlay: document.getElementById('icon-play'),
+            iconPause: document.getElementById('icon-pause'),
+            btnNext: document.getElementById('btn-next'),
+            btnPrev: document.getElementById('btn-prev'),
+            btnShuffle: document.getElementById('btn-shuffle'),
+            btnRepeat: document.getElementById('btn-repeat'),
+            repeatBadge: document.getElementById('repeat-badge'),
+            btnMute: document.getElementById('btn-mute'),
+            iconVolume: document.getElementById('icon-volume'),
+            volumeBar: document.getElementById('volume-bar'),
+            volumeBarMobile: document.getElementById('volume-bar-mobile'),
+            mobileVolumeContainer: document.getElementById('mobile-volume-container'),
+            progressBar: document.getElementById('progress-bar'),
+            timeCurrent: document.getElementById('time-current'),
+            timeTotal: document.getElementById('time-total'),
+            trackTitle: document.getElementById('track-title'),
+            trackArtist: document.getElementById('track-artist'),
+            // Mini
+            miniProgress: document.getElementById('mini-progress'),
+            miniTitle: document.getElementById('mini-title'),
+            miniArtist: document.getElementById('mini-artist'),
+            miniIcon: document.getElementById('mini-icon'),
+            miniBtnPlay: document.getElementById('mini-btn-play'),
+            miniIconPlay: document.getElementById('mini-icon-play'),
+            miniIconPause: document.getElementById('mini-icon-pause'),
+            miniBtnNext: document.getElementById('mini-btn-next'),
+            // Visualizer & EQ
+            canvas: document.getElementById('visualizer'),
+            visualizerStatus: document.getElementById('visualizer-status'),
+            toastContainer: document.getElementById('toastContainer'),
+            eqBandsContainer: document.getElementById('eq-bands-container'),
+            eqPresets: document.getElementById('eq-presets')
+        };
+
+        // --- IndexedDB Wrapper ---
+        const DB_NAME = 'AuraAudioDB';
+        const DB_VERSION = 1;
+        let db;
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = event => reject("IndexedDB error: " + event.target.error);
+                request.onsuccess = event => { db = event.target.result; resolve(); };
+                request.onupgradeneeded = event => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('tracks')) {
+                        db.createObjectStore('tracks', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('playlists')) {
+                        db.createObjectStore('playlists', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        async function dbOp(storeName, mode, operation) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, mode);
+                const store = tx.objectStore(storeName);
+                const request = operation(store);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // --- Audio Context, Visualizer & Equalizer ---
+        let audioCtx, analyser, source, dataArray, bufferLength;
+        let animationId;
+        const canvasCtx = DOM.canvas.getContext('2d');
+        const eqFrequencies = [60, 230, 910, 3600, 14000];
+        const eqFilters = [];
+        const eqPresetValues = {
+            flat: [0, 0, 0, 0, 0],
+            bassBoost: [8, 5, 0, -2, -4],
+            trebleBoost: [-4, -2, 0, 5, 8],
+            electronic: [6, 3, -2, 4, 6],
+            vocal: [-2, 1, 6, 4, -1]
+        };
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast text-sm text-white`;
+            if (type === 'error') toast.style.borderLeftColor = '#ef4444';
+            toast.textContent = message;
+            DOM.toastContainer.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function buildEQUI() {
+            DOM.eqBandsContainer.innerHTML = '';
+            eqFrequencies.forEach((freq, index) => {
+                const label = freq >= 1000 ? (freq / 1000).toFixed(1) + 'k' : freq;
+                const html = `
+                    <div class="flex flex-col items-center gap-3 w-12 sm:w-16">
+                        <span class="text-[10px] text-cyan-400 font-bold">+12</span>
+                        <div class="h-32 flex items-center justify-center relative w-full">
+                            <input type="range" class="eq-slider absolute w-32 -rotate-90 origin-center" min="-12" max="12" step="0.5" value="0" data-index="${index}">
+                        </div>
+                        <span class="text-[10px] text-violet-400 font-bold">-12</span>
+                        <span class="text-xs text-slate-400 mt-2 font-medium">${label}</span>
+                    </div>
+                `;
+                DOM.eqBandsContainer.insertAdjacentHTML('beforeend', html);
+            });
+
+            document.querySelectorAll('.eq-slider').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const idx = e.target.dataset.index;
+                    const val = parseFloat(e.target.value);
+                    if (eqFilters[idx]) eqFilters[idx].gain.value = val;
+                    DOM.eqPresets.value = 'custom';
+                });
+            });
+        }
+
+        function applyEQPreset(presetName) {
+            const values = eqPresetValues[presetName] || eqPresetValues.flat;
+            document.querySelectorAll('.eq-slider').forEach((slider, idx) => {
+                slider.value = values[idx];
+                if (eqFilters[idx]) eqFilters[idx].gain.value = values[idx];
+            });
+        }
+
+        DOM.eqPresets.addEventListener('change', (e) => {
+            if (e.target.value !== 'custom') applyEQPreset(e.target.value);
+        });
+
+        function initAudioContext() {
+            if (state.audioContextInitialized) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+
+                source = audioCtx.createMediaElementSource(DOM.audio);
+
+                let prevNode = source;
+                eqFrequencies.forEach(freq => {
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'peaking';
+                    filter.frequency.value = freq;
+                    filter.gain.value = 0;
+                    eqFilters.push(filter);
+                    prevNode.connect(filter);
+                    prevNode = filter;
+                });
+
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+                prevNode.connect(analyser);
+                analyser.connect(audioCtx.destination);
+
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                state.audioContextInitialized = true;
+                DOM.visualizerStatus.textContent = "Visualizer Active";
+                DOM.visualizerStatus.classList.add('text-cyan-400');
+
+                applyEQPreset(DOM.eqPresets.value);
+                resizeCanvas();
+                drawVisualizer();
+            } catch (error) {
+                console.error("Audio Context Init Error:", error);
+                showToast("Visualizer/EQ may be unavailable for some streams (CORS)", "error");
+            }
+        }
+
+        function resizeCanvas() {
+            const parent = DOM.canvas.parentElement;
+            DOM.canvas.width = parent.clientWidth;
+            DOM.canvas.height = parent.clientHeight;
+        }
+        window.addEventListener('resize', () => {
+            if (DOM.fullPlayerModal.classList.contains('open')) resizeCanvas();
+        });
+
+        function drawVisualizer() {
+            animationId = requestAnimationFrame(drawVisualizer);
+            if (!state.isPlaying || !state.audioContextInitialized) return;
+
+            analyser.getByteFrequencyData(dataArray);
+            const width = DOM.canvas.width;
+            const height = DOM.canvas.height;
+
+            canvasCtx.clearRect(0, 0, width, height);
+
+            const barWidth = (width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * height;
+
+                const gradient = canvasCtx.createLinearGradient(0, height, 0, height - barHeight);
+                gradient.addColorStop(0, '#06b6d4');
+                gradient.addColorStop(1, '#8b5cf6');
+
+                canvasCtx.fillStyle = gradient;
+                canvasCtx.beginPath();
+                canvasCtx.roundRect(x, height - barHeight, barWidth - 2, barHeight, [4, 4, 0, 0]);
+                canvasCtx.fill();
+
+                x += barWidth;
+            }
+        }
+
+        // --- UI Rendering ---
+        function switchView(viewId) {
+            DOM.views.forEach(v => v.classList.remove('active'));
+            DOM.navBtns.forEach(btn => btn.classList.remove('active', 'bg-white/10', 'text-white'));
+            DOM.navBtns.forEach(btn => btn.classList.add('text-slate-400'));
+
+            document.getElementById(viewId).classList.add('active');
+            const activeBtn = document.querySelector(`[data-target="${viewId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('active', 'bg-white/10', 'text-white');
+            }
+            state.activeView = viewId;
+        }
+
+        DOM.navBtns.forEach(btn => {
+            btn.addEventListener('click', () => switchView(btn.dataset.target));
+        });
+
+        function createTrackHTML(track, context = 'library', playlistId = null) {
+            const isActive = state.playbackQueue[state.currentIndex]?.id === track.id;
+            const icon = track.type === 'local' ? 'ph-file-audio' : 'ph-globe';
+            const subtitle = track.type === 'local' ? 'Local File' : 'Stream URL';
+
+            let actionHtml = '';
+            if (context === 'library' || context === 'favorites') {
+                const heartClass = track.isFavorite ? 'ph-fill text-pink-500' : 'ph text-slate-400 hover:text-pink-400';
+                actionHtml = `
+                    <button class="btn-fav p-2" data-id="${track.id}" title="Favorite">
+                        <i class="${heartClass} text-xl transition-colors"></i>
+                    </button>
+                    <button class="btn-open-add-pl p-2 text-slate-400 hover:text-cyan-400 transition-colors" data-id="${track.id}" title="Add to Playlist">
+                        <i class="ph ph-plus text-xl"></i>
+                    </button>
+                    <button class="btn-del p-2 text-slate-400 hover:text-red-400 transition-colors" data-id="${track.id}" title="Delete">
+                        <i class="ph ph-trash text-xl"></i>
+                    </button>
+                `;
+            } else if (context === 'playlist') {
+                actionHtml = `
+                    <button class="btn-remove-from-playlist p-2 text-slate-400 hover:text-red-400 transition-colors" data-id="${track.id}" data-pid="${playlistId}" title="Remove from playlist">
+                        <i class="ph ph-x-circle text-xl"></i>
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${isActive ? 'bg-white/10 border border-white/20 shadow-md' : 'glass-panel glass-hover'}" data-id="${track.id}">
+                    <div class="flex items-center gap-4 overflow-hidden flex-grow track-play-trigger">
+                        <div class="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 relative shadow-inner">
+                            ${isActive && state.isPlaying
+                    ? '<div class="playing-indicator"><span></span><span></span><span></span></div>'
+                    : `<i class="${icon} text-2xl${isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-white transition-colors'}"></i>`
+                }
+                        </div>
+                        <div class="flex flex-col truncate">
+                            <span class="text-sm font-semibold truncate ${isActive ? 'text-cyan-400' : 'text-slate-200 group-hover:text-white'}">${track.name}</span>
+                            <span class="text-xs text-slate-500 mt-0.5">${subtitle}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0 ml-4 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        ${actionHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLibrary(query = '') {
+            let filtered = state.tracks;
+            if (query) {
+                const q = query.toLowerCase();
+                filtered = state.tracks.filter(t => t.name.toLowerCase().includes(q));
+            }
+
+            if (filtered.length === 0) {
+                DOM.libraryList.innerHTML = `<div class="text-center text-slate-500 py-10">No tracks found. Drop audio files to add.</div>`;
+                return;
+            }
+
+            DOM.libraryList.innerHTML = filtered.map(t => createTrackHTML(t, 'library')).join('');
+            attachTrackListeners(DOM.libraryList, filtered);
+        }
+
+        function renderFavorites() {
+            const favs = state.tracks.filter(t => t.isFavorite);
+            if (favs.length === 0) {
+                DOM.favoritesList.innerHTML = `<div class="text-center text-slate-500 py-10">No favorites yet. Heart a track to see it here.</div>`;
+                return;
+            }
+            DOM.favoritesList.innerHTML = favs.map(t => createTrackHTML(t, 'favorites')).join('');
+            attachTrackListeners(DOM.favoritesList, favs);
+        }
+
+        function renderPlaylists() {
+            if (state.playlists.length === 0) {
+                DOM.playlistsGrid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-10">No playlists created.</div>`;
+                return;
+            }
+
+            DOM.playlistsGrid.innerHTML = state.playlists.map(pl => `
+                <div class="glass-panel glass-hover p-5 rounded-2xl cursor-pointer flex flex-col gap-3 group transition-all" data-pid="${pl.id}">
+                    <div class="flex justify-between items-start">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center text-violet-400 group-hover:text-cyan-400 group-hover:scale-110 transition-all border border-white/5">
+                            <i class="ph ph-playlist text-2xl"></i>
+                        </div>
+                        <button class="btn-del-pl text-slate-500 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity" data-pid="${pl.id}">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-lg truncate group-hover:text-cyan-100">${pl.name}</h4>
+                        <p class="text-slate-400 text-xs">${pl.trackIds.length} Tracks</p>
+                    </div>
+                </div>
+            `).join('');
+
+            DOM.playlistsGrid.querySelectorAll('.glass-panel').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.btn-del-pl')) openPlaylist(card.dataset.pid);
+                });
+            });
+
+            DOM.playlistsGrid.querySelectorAll('.btn-del-pl').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.pid);
+                    state.playlists = state.playlists.filter(p => p.id !== id);
+                    await dbOp('playlists', 'readwrite', s => s.delete(id));
+                    renderPlaylists();
+                    showToast("Playlist deleted");
+                });
+            });
+        }
+
+        function openPlaylist(id) {
+            id = parseInt(id);
+            const pl = state.playlists.find(p => p.id === id);
+            if (!pl) return;
+
+            state.currentPlaylistId = id;
+            DOM.activePlaylistTitle.textContent = pl.name;
+            DOM.playlistsGrid.classList.add('hidden');
+            DOM.btnOpenCreatePlaylist.classList.add('hidden');
+            DOM.playlistDetails.classList.remove('hidden');
+
+            renderPlaylistTracks(pl);
+        }
+
+        function renderPlaylistTracks(pl) {
+            const tracksInPl = pl.trackIds.map(tid => state.tracks.find(t => t.id === tid)).filter(Boolean);
+
+            let html = tracksInPl.length === 0
+                ? `<div class="text-center text-slate-500 py-6 text-sm">Playlist is empty.</div>`
+                : tracksInPl.map(t => createTrackHTML(t, 'playlist', pl.id)).join('');
+
+            // Add track selector UI at bottom
+            const availableTracks = state.tracks.filter(t => !pl.trackIds.includes(t.id));
+            if (availableTracks.length > 0) {
+                html += `
+                    <div class="mt-6 border-t border-white/10 pt-6">
+                        <h4 class="text-sm font-semibold text-slate-300 mb-3">Add to Playlist</h4>
+                        <select id="pl-add-select" class="w-full bg-slate-900 border border-white/20 text-white text-sm rounded-lg p-2.5 outline-none mb-3">
+                            <option value="">-- Select a track to add --</option>
+                            ${availableTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                        </select>
+                        <button id="btn-pl-add" class="w-full bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/10">Add Selected Track</button>
+                    </div>
+                `;
+            }
+
+            DOM.playlistTracksList.innerHTML = html;
+            attachTrackListeners(DOM.playlistTracksList, tracksInPl, pl.id);
+
+            const btnAdd = document.getElementById('btn-pl-add');
+            if (btnAdd) {
+                btnAdd.addEventListener('click', async () => {
+                    const select = document.getElementById('pl-add-select');
+                    const tid = parseInt(select.value);
+                    if (!tid) return;
+                    pl.trackIds.push(tid);
+                    await dbOp('playlists', 'readwrite', s => s.put(pl));
+                    renderPlaylistTracks(pl);
+                    renderPlaylists();
+                    showToast("Track added to playlist");
+                });
+            }
+        }
+
+        DOM.btnBackPlaylists.addEventListener('click', () => {
+            DOM.playlistDetails.classList.add('hidden');
+            DOM.playlistsGrid.classList.remove('hidden');
+            DOM.btnOpenCreatePlaylist.classList.remove('hidden');
+            state.currentPlaylistId = null;
+        });
+
+        // --- Modal Playlist Event Listeners ---
+        DOM.btnOpenCreatePlaylist.addEventListener('click', () => {
+            DOM.modalPlaylistName.value = '';
+            DOM.playlistModal.classList.add('active');
+            setTimeout(() => DOM.modalPlaylistName.focus(), 50);
+        });
+
+        DOM.btnCancelPlaylist.addEventListener('click', () => {
+            DOM.playlistModal.classList.remove('active');
+        });
+
+        DOM.btnConfirmPlaylist.addEventListener('click', async () => {
+            const name = DOM.modalPlaylistName.value.trim();
+            if (name) {
+                const pl = { id: Date.now(), name, trackIds: [] };
+                await dbOp('playlists', 'readwrite', s => s.put(pl));
+                state.playlists.push(pl);
+                DOM.playlistModal.classList.remove('active');
+                renderPlaylists();
+                showToast("Playlist created");
+            }
+        });
+
+        // --- Add to Playlist Selector Modal Logic ---
+        function openAddToPlaylistModal(trackId) {
+            state.trackToAddId = trackId;
+            if (state.playlists.length === 0) {
+                showToast("Create a playlist first!", "error");
+                return;
+            }
+            DOM.modalPlaylistsContainer.innerHTML = state.playlists.map(pl => `
+                <div class="glass-panel glass-hover p-3 rounded-xl cursor-pointer flex items-center justify-between add-to-pl-item" data-pid="${pl.id}">
+                    <span class="text-sm font-medium text-white">${pl.name}</span>
+                    <span class="text-xs text-slate-400">${pl.trackIds.length} tracks</span>
+                </div>
+            `).join('');
+
+            DOM.modalPlaylistsContainer.querySelectorAll('.add-to-pl-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const pid = parseInt(item.dataset.pid);
+                    const pl = state.playlists.find(p => p.id === pid);
+                    if (pl && !pl.trackIds.includes(state.trackToAddId)) {
+                        pl.trackIds.push(state.trackToAddId);
+                        await dbOp('playlists', 'readwrite', s => s.put(pl));
+                        renderPlaylists();
+                        if (state.currentPlaylistId === pid) {
+                            renderPlaylistTracks(pl);
+                        }
+                        showToast("Added to playlist");
+                    } else {
+                        showToast("Track already in playlist");
+                    }
+                    DOM.addToPlModal.classList.remove('active');
+                });
+            });
+
+            DOM.addToPlModal.classList.add('active');
+        }
+
+        DOM.btnCancelAddPl.addEventListener('click', () => {
+            DOM.addToPlModal.classList.remove('active');
+        });
+
+        function attachTrackListeners(container, trackList, playlistId = null) {
+            container.querySelectorAll('.track-play-trigger').forEach(trigger => {
+                trigger.addEventListener('click', () => {
+                    const id = parseInt(trigger.closest('[data-id]').dataset.id);
+                    const idx = trackList.findIndex(t => t.id === id);
+                    if (idx !== -1) {
+                        state.playbackQueue = trackList;
+                        loadTrack(idx);
+                    }
+                });
+            });
+
+            container.querySelectorAll('.btn-fav').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const track = state.tracks.find(t => t.id === id);
+                    if (track) {
+                        track.isFavorite = !track.isFavorite;
+                        await dbOp('tracks', 'readwrite', s => s.put(track));
+                        refreshAllViews();
+                        showToast(track.isFavorite ? "Added to Favorites" : "Removed from Favorites");
+                    }
+                });
+            });
+
+            container.querySelectorAll('.btn-open-add-pl').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    openAddToPlaylistModal(id);
+                });
+            });
+
+            container.querySelectorAll('.btn-del').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    if (confirm("Delete this track from library?")) {
+                        await dbOp('tracks', 'readwrite', s => s.delete(id));
+                        state.tracks = state.tracks.filter(t => t.id !== id);
+
+                        for (let pl of state.playlists) {
+                            if (pl.trackIds.includes(id)) {
+                                pl.trackIds = pl.trackIds.filter(tid => tid !== id);
+                                await dbOp('playlists', 'readwrite', s => s.put(pl));
+                            }
+                        }
+
+                        if (state.playbackQueue[state.currentIndex]?.id === id) {
+                            pauseAudio();
+                            DOM.miniPlayer.classList.remove('visible');
+                        }
+
+                        refreshAllViews();
+                        showToast("Track deleted");
+                    }
+                });
+            });
+
+            container.querySelectorAll('.btn-remove-from-playlist').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const tid = parseInt(btn.dataset.id);
+                    const pid = parseInt(btn.dataset.pid);
+                    const pl = state.playlists.find(p => p.id === pid);
+                    if (pl) {
+                        pl.trackIds = pl.trackIds.filter(id => id !== tid);
+                        await dbOp('playlists', 'readwrite', s => s.put(pl));
+                        renderPlaylistTracks(pl);
+                        renderPlaylists();
+                    }
+                });
+            });
+        }
+
+        function refreshAllViews() {
+            renderLibrary(DOM.searchInput.value);
+            renderFavorites();
+            renderPlaylists();
+            if (state.currentPlaylistId) {
+                const pl = state.playlists.find(p => p.id === state.currentPlaylistId);
+                if (pl) renderPlaylistTracks(pl);
+            }
+            updateModalPlayerActionUI();
+        }
+
+        function updateModalPlayerActionUI() {
+            const currentTrack = state.playbackQueue[state.currentIndex];
+            if (currentTrack) {
+                if (currentTrack.isFavorite) {
+                    DOM.modalIconFav.className = "ph-fill ph-heart text-2xl text-pink-500";
+                } else {
+                    DOM.modalIconFav.className = "ph ph-heart text-2xl";
+                }
+            }
+        }
+
+        // --- Core Audio Logic ---
+        async function loadTrack(index) {
+            if (index < 0 || index >= state.playbackQueue.length) return;
+            state.currentIndex = index;
+            const track = state.playbackQueue[index];
+
+            try {
+                let src = track.url;
+                if (track.type === 'local' && track.blob) {
+                    if (track.objectUrl) URL.revokeObjectURL(track.objectUrl);
+                    track.objectUrl = URL.createObjectURL(track.blob);
+                    src = track.objectUrl;
+                }
+
+                DOM.audio.src = src;
+
+                const titleStr = track.name;
+                const artistStr = track.type === 'local' ? "Local File" : "Stream URL";
+
+                DOM.trackTitle.textContent = titleStr;
+                DOM.trackArtist.textContent = artistStr;
+                DOM.miniTitle.textContent = titleStr;
+                DOM.miniArtist.textContent = artistStr;
+                DOM.miniIcon.className = track.type === 'local' ? 'ph ph-file-audio text-2xl text-cyan-400' : 'ph ph-globe text-2xl text-violet-400';
+
+                DOM.miniPlayer.classList.add('visible');
+                refreshAllViews();
+
+                playAudio();
+            } catch (err) {
+                showToast("Error loading track", "error");
+                console.error(err);
+            }
+        }
+
+        function playAudio() {
+            if (!state.audioContextInitialized) initAudioContext();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            DOM.audio.play().then(() => {
+                state.isPlaying = true;
+                updatePlayPauseUI();
+            }).catch(e => {
+                showToast("Playback blocked. Please interact with document.", "error");
+                state.isPlaying = false;
+                updatePlayPauseUI();
+            });
+        }
+
+        function pauseAudio() {
+            DOM.audio.pause();
+            state.isPlaying = false;
+            updatePlayPauseUI();
+        }
+
+        function togglePlayPause(e) {
+            if (e) e.stopPropagation();
+            if (state.playbackQueue.length === 0) return;
+            if (state.isPlaying) pauseAudio();
+            else playAudio();
+        }
+
+        function updatePlayPauseUI() {
+            if (state.isPlaying) {
+                DOM.iconPlay.classList.add('hidden');
+                DOM.iconPause.classList.remove('hidden');
+                DOM.miniIconPlay.classList.add('hidden');
+                DOM.miniIconPause.classList.remove('hidden');
+            } else {
+                DOM.iconPlay.classList.remove('hidden');
+                DOM.iconPause.classList.add('hidden');
+                DOM.miniIconPlay.classList.remove('hidden');
+                DOM.miniIconPause.classList.add('hidden');
+            }
+            refreshAllViews();
+        }
+
+        function playNext(e) {
+            if (e) e.stopPropagation();
+            if (state.playbackQueue.length === 0) return;
+            let nextIdx = state.currentIndex + 1;
+
+            if (state.isShuffle) {
+                nextIdx = Math.floor(Math.random() * state.playbackQueue.length);
+            } else if (nextIdx >= state.playbackQueue.length) {
+                nextIdx = (state.repeatMode === 1) ? 0 : -1;
+            }
+
+            if (nextIdx !== -1) loadTrack(nextIdx);
+            else pauseAudio();
+        }
+
+        function playPrev(e) {
+            if (e) e.stopPropagation();
+            if (state.playbackQueue.length === 0) return;
+            if (DOM.audio.currentTime > 3) {
+                DOM.audio.currentTime = 0;
+            } else {
+                let prevIdx = state.currentIndex - 1;
+                if (prevIdx < 0) prevIdx = state.playbackQueue.length - 1;
+                loadTrack(prevIdx);
+            }
+        }
+
+        // --- Event Listeners ---
+        DOM.miniPlayer.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            DOM.fullPlayerModal.classList.add('open');
+            if (state.audioContextInitialized) resizeCanvas();
+        });
+
+        DOM.btnCloseModal.addEventListener('click', () => {
+            DOM.fullPlayerModal.classList.remove('open');
+            DOM.mobileVolumeContainer.classList.add('hidden');
+        });
+
+        // Controls
+        DOM.btnPlayPause.addEventListener('click', togglePlayPause);
+        DOM.miniBtnPlay.addEventListener('click', togglePlayPause);
+        DOM.btnNext.addEventListener('click', playNext);
+        DOM.miniBtnNext.addEventListener('click', playNext);
+        DOM.btnPrev.addEventListener('click', playPrev);
+
+        // Modal Player Actions (Favorite & Add Playlist)
+        DOM.modalBtnFav.addEventListener('click', async () => {
+            const currentTrack = state.playbackQueue[state.currentIndex];
+            if (currentTrack) {
+                currentTrack.isFavorite = !currentTrack.isFavorite;
+                await dbOp('tracks', 'readwrite', s => s.put(currentTrack));
+                refreshAllViews();
+                showToast(currentTrack.isFavorite ? "Added to Favorites" : "Removed from Favorites");
+            }
+        });
+
+        DOM.modalBtnAddPl.addEventListener('click', () => {
+            const currentTrack = state.playbackQueue[state.currentIndex];
+            if (currentTrack) {
+                openAddToPlaylistModal(currentTrack.id);
+            }
+        });
+
+        DOM.audio.addEventListener('timeupdate', () => {
+            if (!DOM.audio.duration) return;
+            const pct = (DOM.audio.currentTime / DOM.audio.duration) * 100;
+            DOM.progressBar.value = pct;
+            DOM.miniProgress.style.width = `${pct}%`;
+            DOM.timeCurrent.textContent = formatTime(DOM.audio.currentTime);
+            DOM.progressBar.style.background = `linear-gradient(to right, var(--primary) ${pct}%, rgba(255,255,255,0.2) ${pct}%)`;
+        });
+
+        DOM.audio.addEventListener('loadedmetadata', () => {
+            DOM.timeTotal.textContent = formatTime(DOM.audio.duration);
+        });
+
+        DOM.audio.addEventListener('ended', () => {
+            if (state.repeatMode === 2) {
+                DOM.audio.currentTime = 0;
+                playAudio();
+            } else {
+                playNext();
+            }
+        });
+
+        DOM.progressBar.addEventListener('input', (e) => {
+            if (!DOM.audio.duration) return;
+            DOM.audio.currentTime = (e.target.value / 100) * DOM.audio.duration;
+            const val = e.target.value;
+            e.target.style.background = `linear-gradient(to right, var(--primary) ${val}%, rgba(255,255,255,0.2) ${val}%)`;
+        });
+
+        // Tambahkan referensi DOM baru di dalam objek DOM kamu jika diperlukan:
+        // miniBtnPrev: document.getElementById('mini-btn-prev'),
+
+        // Event listener tombol Prev di Mini Player
+        DOM.miniBtnPrev = document.getElementById('mini-btn-prev');
+        DOM.miniBtnPrev.addEventListener('click', (e) => {
+            e.stopPropagation();
+            playPrev();
+        });
+
+        // Fungsi untuk mengecek apakah teks perlu jalan (marquee)
+        function updateMarqueeEffect(containerId, textId) {
+            const container = document.getElementById(containerId);
+            const text = document.getElementById(textId);
+            if (!container || !text) return;
+
+            // Reset status animasi
+            container.classList.remove('is-long');
+
+            // Gunakan requestAnimationFrame agar browser selesai merender ukuran elemen
+            requestAnimationFrame(() => {
+                // Cek jika teks asli lebih panjang dari lebar kontainernya
+                if (text.scrollWidth > container.clientWidth) {
+                    container.classList.add('is-long');
+                }
+            });
+        }
+        async function loadTrack(index) {
+            if (index < 0 || index >= state.playbackQueue.length) return;
+            state.currentIndex = index;
+            const track = state.playbackQueue[index];
+
+            try {
+                let src = track.url;
+                if (track.type === 'local' && track.blob) {
+                    if (track.objectUrl) URL.revokeObjectURL(track.objectUrl);
+                    track.objectUrl = URL.createObjectURL(track.blob);
+                    src = track.objectUrl;
+                }
+
+                DOM.audio.src = src;
+
+                const titleStr = track.name;
+                const artistStr = track.type === 'local' ? "Local File" : "Stream URL";
+
+                DOM.trackTitle.textContent = titleStr;
+                DOM.trackArtist.textContent = artistStr;
+                DOM.miniTitle.textContent = titleStr;
+                DOM.miniArtist.textContent = artistStr;
+                DOM.miniIcon.className = track.type === 'local' ? 'ph ph-file-audio text-2xl text-cyan-400' : 'ph ph-globe text-2xl text-violet-400';
+
+                DOM.miniPlayer.classList.add('visible');
+                refreshAllViews();
+
+                // Panggil cek marquee untuk Mini Player dan Full Player
+                updateMarqueeEffect('mini-title-container', 'mini-title');
+                updateMarqueeEffect('modal-title-container', 'track-title');
+
+                playAudio();
+            } catch (err) {
+                showToast("Error loading track", "error");
+                console.error(err);
+            }
+        }
+
+        DOM.miniPlayer.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            DOM.fullPlayerModal.classList.add('open');
+            if (state.audioContextInitialized) resizeCanvas();
+
+            // Cek ulang marquee saat modal terbuka agar ukurannya pas
+            setTimeout(() => {
+                updateMarqueeEffect('modal-title-container', 'track-title');
+            }, 100);
+        });
+
+        // Simpan referensi timer jeda agar bisa dibersihkan saat ganti lagu
+        let miniPauseTimer = null;
+        let modalPauseTimer = null;
+
+        function setupMarqueeLoop(containerId, textId, isModal = false) {
+            const container = document.getElementById(containerId);
+            const text = document.getElementById(textId);
+            if (!container || !text) return;
+
+            if (isModal) {
+                if (modalPauseTimer) clearTimeout(modalPauseTimer);
+            } else {
+                if (miniPauseTimer) clearTimeout(miniPauseTimer);
+            }
+
+            container.classList.remove('is-long', 'paused-at-edge');
+
+            requestAnimationFrame(() => {
+                if (text.scrollWidth > container.clientWidth) {
+                    container.classList.add('is-long');
+
+                    let loopCount = 0;
+                    const oldHandler = container._animationHandler;
+                    if (oldHandler) {
+                        text.removeEventListener('animationiteration', oldHandler);
+                    }
+
+                    const animationHandler = () => {
+                        if (container.matches(':hover')) return;
+
+                        loopCount++;
+
+                        // Setelah 3 putaran normal selesai, masuk ke putaran ke-4
+                        if (loopCount >= 4) {
+                            loopCount = 0; // Reset hitungan
+
+                            // Paksa berhenti tepat di ujung kiri dengan huruf pertama mentok
+                            container.classList.add('paused-at-edge');
+
+                            // Diam selama 10 detik dengan judul tampil full, lalu lanjut muter normal lagi
+                            const timer = setTimeout(() => {
+                                container.classList.remove('paused-at-edge');
+                            }, 10000); // Jeda 10 detik
+
+                            if (isModal) modalPauseTimer = timer;
+                            else miniPauseTimer = timer;
+                        }
+                    };
+
+                    text.addEventListener('animationiteration', animationHandler);
+                    container._animationHandler = animationHandler;
+                }
+            });
+        }
+
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+
+        // Perbarui fungsi updateMarqueeEffect untuk memanggil loop handler baru
+        function updateMarqueeEffect(containerId, textId) {
+            const isModal = containerId.includes('modal');
+            setupMarqueeLoop(containerId, textId, isModal);
+        }
+        // Volume Handlers (Desktop & Mobile Vertical)
+        // Sinkronisasi fungsi volume
+        function setVolume(vol) {
+            DOM.audio.volume = vol;
+            DOM.volumeBar.value = vol * 100;
+            if (vol === 0) DOM.iconVolume.className = 'ph ph-speaker-x text-xl';
+            else if (vol < 0.5) DOM.iconVolume.className = 'ph ph-speaker-low text-xl';
+            else DOM.iconVolume.className = 'ph ph-speaker-high text-xl';
+        }
+
+        DOM.volumeBar.addEventListener('input', (e) => {
+            setVolume(e.target.value / 100);
+        });
+
+        const volumeDrawer = document.getElementById('volume-drawer');
+
+        DOM.btnMute.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Kalau di mobile (< 640px), pakai sistem toggle buka-tutup drawer vertikal
+            if (window.innerWidth < 640) {
+                volumeDrawer.classList.toggle('mobile-open');
+                return;
+            }
+
+            // Logika mute/unmute standar desktop
+            if (DOM.audio.volume > 0) {
+                DOM.audio.dataset.savedVolume = DOM.audio.volume;
+                setVolume(0);
+            } else {
+                const saved = DOM.audio.dataset.savedVolume || 1;
+                setVolume(saved);
+            }
+        });
+
+        // Tutup drawer kalau klik di luar area volume
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.volume-wrapper')) {
+                volumeDrawer.classList.remove('mobile-open');
+            }
+        });
+
+        // Click outside to close mobile volume slider
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('#btn-mute') && !e.target.closest('#mobile-volume-container')) {
+                DOM.mobileVolumeContainer.classList.add('hidden');
+            }
+        });
+
+        DOM.btnShuffle.addEventListener('click', () => {
+            state.isShuffle = !state.isShuffle;
+            DOM.btnShuffle.classList.toggle('active-btn', state.isShuffle);
+            showToast(state.isShuffle ? "Shuffle On" : "Shuffle Off");
+        });
+
+        DOM.btnRepeat.addEventListener('click', () => {
+            state.repeatMode = (state.repeatMode + 1) % 3;
+            if (state.repeatMode === 0) {
+                DOM.btnRepeat.classList.remove('active-btn');
+                DOM.repeatBadge.classList.add('hidden');
+                showToast("Repeat Off");
+            } else if (state.repeatMode === 1) {
+                DOM.btnRepeat.classList.add('active-btn');
+                DOM.repeatBadge.classList.add('hidden');
+                showToast("Repeat All");
+            } else {
+                DOM.btnRepeat.classList.add('active-btn');
+                DOM.repeatBadge.classList.remove('hidden');
+                showToast("Repeat One");
+            }
+        });
+
+        // Search & Input Handlers
+        DOM.searchInput.addEventListener('input', (e) => renderLibrary(e.target.value));
+
+        DOM.btnShowUrl.addEventListener('click', () => {
+            DOM.urlInputContainer.classList.toggle('hidden');
+            if (!DOM.urlInputContainer.classList.contains('hidden')) DOM.urlInput.focus();
+        });
+
+        DOM.btnSubmitUrl.addEventListener('click', async () => {
+            const url = DOM.urlInput.value.trim();
+            if (url) {
+                const nameMatch = url.match(/\/([^\/?#]+)$/i);
+                let name = nameMatch ? nameMatch[1] : 'External Stream';
+                try { name = decodeURIComponent(name); } catch (e) { }
+
+                const track = { id: Date.now(), name, type: 'url', url, isFavorite: false };
+                await dbOp('tracks', 'readwrite', s => s.put(track));
+                state.tracks.push(track);
+                DOM.urlInput.value = '';
+                DOM.urlInputContainer.classList.add('hidden');
+                renderLibrary();
+                showToast("Stream URL Added");
+            }
+        });
+
+        async function handleFiles(files) {
+            let addedCount = 0;
+            for (let file of files) {
+                if (!file.type.startsWith('audio/')) continue;
+                const track = {
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    type: 'local',
+                    blob: file,
+                    isFavorite: false
+                };
+                await dbOp('tracks', 'readwrite', s => s.put(track));
+                state.tracks.push(track);
+                addedCount++;
+            }
+            if (addedCount > 0) {
+                renderLibrary();
+                showToast(`Added ${addedCount} local track(s)`);
+            }
+        }
+
+        DOM.fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            e.target.value = '';
+        });
+
+        // Drag & Drop Global Handlers
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.types.includes('Files')) DOM.dndOverlay.classList.add('active');
+        });
+
+        DOM.dndOverlay.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            DOM.dndOverlay.classList.remove('active');
+        });
+
+        DOM.dndOverlay.addEventListener('drop', (e) => {
+            e.preventDefault();
+            DOM.dndOverlay.classList.remove('active');
+            if (e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+                if (state.activeView !== 'view-home') switchView('view-home');
+            }
+        });
+
+        // --- Initialization ---
+        async function bootApp() {
+            try {
+                await initDB();
+
+                state.tracks = await dbOp('tracks', 'readonly', s => s.getAll());
+                state.playlists = await dbOp('playlists', 'readonly', s => s.getAll());
+
+                buildEQUI();
+                refreshAllViews();
+                switchView('view-home');
+
+            } catch (err) {
+                console.error("Boot error:", err);
+                showToast("Failed to load local database", "error");
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', bootApp);
+
+    </script>
+</body>
+
+</html>
