@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura | Advanced Audio Player by Mazaw</title>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Create Playlist Modal -->
+    <div id="playlist-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-2">Create New Playlist</h3>
+            <p class="text-slate-400 text-sm mb-4">Give your playlist a memorable name.</p>
+            <input type="text" id="modal-playlist-name" placeholder="Playlist Name"
+                class="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors mb-6">
+            <div class="flex justify-end gap-3">
+                <button id="btn-cancel-playlist"
+                    class="px-4 py-2 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300">Cancel</button>
+                <button id="btn-confirm-playlist"
+                    class="px-5 py-2 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-lg shadow-violet-500/20">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Playlist Selector Modal -->
+    <div id="add-to-pl-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-2">Add to Playlist</h3>
+            <p class="text-slate-400 text-sm mb-4">Select a playlist to add this track.</p>
+            <div id="modal-playlists-container" class="flex flex-col gap-2 max-h-60 overflow-y-auto mb-6 pr-1"></div>
+            <div class="flex justify-end">
+                <button id="btn-cancel-add-pl"
+                    class="px-4 py-2 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-sm mx-4 border border-white/10 shadow-2xl text-center">
+            <div
+                class="w-16 h-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <i class="ph ph-trash text-4xl"></i>
+            </div>
+            <h3 id="delete-modal-title" class="text-xl font-bold text-white mb-2">Delete Track?</h3>
+            <p id="delete-modal-desc" class="text-slate-400 text-sm mb-6">This track will be permanently removed from your library and playlists.</p>
+            <div class="flex justify-center gap-3">
+                <button id="btn-cancel-delete"
+                    class="px-5 py-2.5 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300 w-full">Cancel</button>
+                <button id="btn-confirm-delete"
+                    class="px-5 py-2.5 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors shadow-lg shadow-red-500/20 w-full">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Overlay -->
+    <div id="dnd-overlay">
+        <i class="ph ph-music-notes-plus text-6xl text-cyan-400 mb-4 animate-bounce"></i>
+        <h2 class="text-3xl font-bold text-white">Drop Audio Files Here</h2>
+        <p class="text-slate-400 mt-2">Instantly add them to your local library</p>
+    </div>
+
+    <!-- Add Tracks to Playlist Modal (Modal Baru) -->
+    <div id="add-tracks-modal" class="custom-modal-overlay">
+        <div
+            class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white">Add Tracks</h3>
+                <button id="btn-close-add-tracks" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="flex items-center justify-between mb-4 glass-panel p-3 rounded-xl border border-white/5">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 font-medium px-2">
+                    <input type="checkbox" id="modal-select-all-tracks" class="w-4 h-4 accent-cyan-500 rounded">
+                    <span>Select All</span>
+                </label>
+                <span id="modal-selected-tracks-count" class="text-xs text-slate-400">0 selected</span>
+            </div>
+
+            <!-- List Lagu akan masuk kesini -->
+            <div id="modal-available-tracks-list" class="flex flex-col gap-2 overflow-y-auto pr-2 mb-4 flex-grow">
+            </div>
+
+            <button id="btn-confirm-add-tracks"
+                class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-cyan-500/20">
+                Add to Playlist
+            </button>
+        </div>
+    </div>
+
+    <div id="app-container">
+        <!-- Sidebar / Bottom Nav -->
+        <nav id="sidebar" class="glass flex flex-col justify-between p-4 h-full">
+            <div class="flex lg:flex-col gap-2 w-full" id="nav-menu">
+                <button data-target="view-home"
+                    class="nav-item active flex items-center px-4 py-3 rounded-xl transition-all bg-white/10 text-white font-medium">
+                    <i class="ph ph-house text-xl lg:mr-3 text-cyan-400"></i>
+                    <span class="sidebar-label">Home</span>
+                </button>
+                <button data-target="view-playlists"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-playlist text-xl lg:mr-3 text-violet-400"></i>
+                    <span class="sidebar-label">Playlists</span>
+                </button>
+                <button data-target="view-favorites"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-heart text-xl lg:mr-3 text-pink-400"></i>
+                    <span class="sidebar-label">Favorites</span>
+                </button>
+                <button data-target="view-downloader"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-download-simple text-xl lg:mr-3 text-amber-400"></i>
+                    <span class="sidebar-label">YT to MP3</span>
+                </button>
+                <button data-target="view-equalizer"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-sliders-horizontal text-xl lg:mr-3 text-emerald-400"></i>
+                    <span class="sidebar-label">Equalizer</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="relative">
+            <!-- Home View -->
+            <section id="view-home" class="view-section active p-6 lg:p-10">
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Your Library</h2>
+                        <p class="text-slate-400 text-sm">All imported offline and online tracks</p>
+                    </div>
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <div class="relative flex-grow sm:flex-grow-0">
+                            <i
+                                class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="search-input" placeholder="Search tracks..."
+                                class="w-full sm:w-64 glass-panel pl-10 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500 transition-colors">
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Batch Actions Bar -->
+                <div id="batch-actions-bar"
+                    class="hidden items-center justify-between glass-panel p-3 rounded-xl mb-4 border border-white/10 animate-fade-in">
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 font-medium px-2">
+                            <input type="checkbox" id="select-all-checkbox" class="w-4 h-4 accent-cyan-500 rounded">
+                            <span>Select All</span>
+                        </label>
+                        <span id="selected-count" class="text-xs text-slate-400">0 selected</span>
+                    </div>
+                    <button id="btn-delete-selected"
+                        class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
+                        <i class="ph ph-trash text-base"></i> Delete Selected
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mb-8">
+                    <label
+                        class="cursor-pointer bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+                        <i class="ph ph-upload-simple text-lg"></i> Import Local Audio
+                        <input type="file" id="file-input" multiple accept="audio/*" class="hidden">
+                    </label>
+                    <button id="btn-show-url"
+                        class="glass-panel glass-hover px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-white">
+                        <i class="ph ph-link text-lg text-violet-400"></i> Add Stream / YouTube URL
+                    </button>
+                </div>
+
+                <div id="url-input-container"
+                    class="hidden glass-panel p-4 rounded-xl mb-8 flex-col gap-3 animate-fade-in border border-white/10">
+                    <div class="flex gap-2 w-full items-center">
+                        <div class="relative flex-grow">
+                            <input type="text" id="url-input" placeholder="Paste link (YouTube / Direct MP3 URL)"
+                                class="w-full bg-slate-900/50 border border-white/10 rounded-lg pl-4 pr-10 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors h-10">
+                            <button id="btn-clear-url"
+                                class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors">
+                                <i class="ph ph-x text-base"></i>
+                            </button>
+                        </div>
+                        <button id="btn-paste-url"
+                            class="bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors w-24 h-10 flex items-center justify-center gap-2 shrink-0">
+                            <i class="ph ph-clipboard text-lg"></i> Paste
+                        </button>
+                        <button id="btn-check-url"
+                            class="hidden bg-violet-500 hover:bg-violet-400 text-white rounded-lg text-sm font-medium transition-colors w-24 h-10 flex items-center justify-center shrink-0">Check</button>
+                    </div>
+                    <div id="url-preview-container"
+                        class="hidden items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
+                        <div class="flex flex-col truncate pr-4">
+                            <span class="text-xs text-slate-400 mb-0.5">Identified Title:</span>
+                            <span id="url-preview-title" class="text-sm font-semibold text-white truncate">--</span>
+                        </div>
+                        <button id="btn-submit-url"
+                            class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0">Add
+                            to Library</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2" id="library-list"></div>
+            </section>
+
+            <!-- Playlists View -->
+            <section id="view-playlists" class="view-section p-6 lg:p-10">
+                <!-- Header dan Daftar Playlist tetap sama -->
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Playlists</h2>
+                        <p class="text-slate-400 text-sm">Organize your music collection</p>
+                    </div>
+                    <button id="btn-open-create-playlist"
+                        class="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-violet-500/20 flex items-center gap-2">
+                        <i class="ph ph-plus text-lg"></i> New Playlist
+                    </button>
+                </header>
+                <div id="playlists-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                <div id="playlist-details" class="hidden mt-8">
+                    <div class="flex items-center gap-4 mb-6">
+                        <button id="btn-back-playlists"
+                            class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors">
+                            <i class="ph ph-arrow-left text-xl"></i>
+                        </button>
+                        <h3 id="active-playlist-title" class="text-2xl font-bold text-white">Playlist Name</h3>
+                    </div>
+                    <!-- Batch Actions Bar Playlist -->
+                    <div id="batch-actions-bar-playlist"
+                        class="hidden items-center justify-between glass-panel p-3 rounded-xl mb-4 border border-white/10 animate-fade-in">
+                        <div class="flex items-center gap-3">
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 font-medium px-2">
+                                <input type="checkbox" id="select-all-checkbox-playlist"
+                                    class="w-4 h-4 accent-cyan-500 rounded">
+                                <span>Select All</span>
+                            </label>
+                            <span id="selected-count-playlist" class="text-xs text-slate-400">0 selected</span>
+                        </div>
+                        <button id="btn-remove-selected-playlist"
+                            class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
+                            <i class="ph ph-x-circle text-base"></i> Remove from Playlist
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2" id="playlist-tracks-list"></div>
+                </div>
+            </section>
+
+            <!-- Favorites View -->
+            <section id="view-favorites" class="view-section p-6 lg:p-10">
+                <header class="mb-8 flex items-center gap-3">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-1">Favorites</h2>
+                        <p class="text-slate-400 text-sm">Tracks you love</p>
+                    </div>
+                </header>
+                <!-- Batch Actions Bar Favorites -->
+                <div id="batch-actions-bar-favorites"
+                    class="hidden items-center justify-between glass-panel p-3 rounded-xl mb-4 border border-white/10 animate-fade-in">
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 font-medium px-2">
+                            <input type="checkbox" id="select-all-checkbox-favorites"
+                                class="w-4 h-4 accent-cyan-500 rounded">
+                            <span>Select All</span>
+                        </label>
+                        <span id="selected-count-favorites" class="text-xs text-slate-400">0 selected</span>
+                    </div>
+                    <button id="btn-delete-selected-favorites"
+                        class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
+                        <i class="ph ph-trash text-base"></i> Remove from Favorites
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2" id="favorites-list"></div>
+            </section>
+
+            <!-- YouTube to MP3 Converter View -->
+            <section id="view-downloader" class="view-section p-6 lg:p-10">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-white mb-1">YouTube to MP3 Converter</h2>
+                    <p class="text-slate-400 text-sm">Paste a YouTube link to convert and download instantly</p>
+                </header>
+                <div class="glass-panel rounded-2xl p-6 border border-white/10 max-w-2xl mx-auto flex flex-col gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">YouTube URL</label>
+                        <div class="flex gap-2 w-full items-center">
+                            <div class="relative flex-grow">
+                                <input type="text" id="dl-url-input" placeholder="https://www.youtube.com/watch?v=..."
+                                    class="w-full bg-slate-900/60 border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors h-12">
+                                <button id="btn-clear-dl-url"
+                                    class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
+                            <button id="btn-paste-dl"
+                                class="bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-medium transition-all shadow-lg w-32 h-12 flex items-center justify-center gap-2 shrink-0">
+                                <i class="ph ph-clipboard text-lg"></i> Paste
+                            </button>
+                            <button id="btn-dl-identify"
+                                class="hidden bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-amber-500/20 w-32 h-12 flex items-center justify-center gap-2 shrink-0">
+                                <i class="ph ph-magnifying-glass text-lg"></i> Identify
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sisanya sama... -->
+                    <div id="dl-preview-container"
+                        class="hidden mt-4 p-4 glass rounded-xl border border-white/10 flex-col gap-4 animate-fade-in">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center shrink-0 border border-white/10 text-amber-400 shadow-inner">
+                                <i class="ph ph-youtube-logo text-3xl animate-pulse"></i>
+                            </div>
+                            <div class="flex flex-col overflow-hidden">
+                                <span class="text-xs uppercase tracking-wider text-amber-400 font-bold mb-1">Video
+                                    Identified</span>
+                                <h4 id="dl-video-title" class="text-white font-bold text-base truncate">--</h4>
+                                <span id="dl-video-id-label" class="text-slate-400 text-xs mt-0.5">ID: --</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3 pt-2 border-t border-white/5" id="dl-action-buttons">
+                            <button id="btn-dl-convert"
+                                class="bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg flex items-center gap-2">
+                                <i class="ph ph-arrows-clockwise text-lg"></i> Convert & Download
+                            </button>
+                            <button id="btn-dl-add-lib-only"
+                                class="bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg flex items-center gap-2">
+                                <i class="ph ph-library text-lg"></i> Add to Library
+                            </button>
+                        </div>
+                        <div id="dl-progress-container" class="hidden flex-col gap-2 pt-2 border-t border-white/5">
+                            <div class="flex justify-between text-xs text-slate-400 font-medium">
+                                <span>Processing Audio...</span>
+                                <span id="dl-progress-text">0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div id="dl-progress-bar" class="h-full bg-amber-500 transition-all duration-150"
+                                    style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div id="dl-download-container"
+                            class="hidden flex justify-end gap-3 pt-2 border-t border-white/5">
+                            <a id="btn-dl-download" href="#" target="_blank"
+                                class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                                <i class="ph ph-download-simple text-lg"></i> Download MP3 File
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Equalizer View -->
+            <section id="view-equalizer" class="view-section p-6 lg:p-10">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-white mb-1">Equalizer</h2>
+                    <p class="text-slate-400 text-sm">Fine-tune your audio experience (Web Audio API)</p>
+                </header>
+                <div class="glass-panel rounded-2xl p-6 border border-white/10 max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <span class="text-white font-medium">Presets</span>
+                        <select id="eq-presets"
+                            class="bg-slate-900 border border-white/20 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none">
+                            <option value="flat">Flat</option>
+                            <option value="bassBoost">Bass Boost</option>
+                            <option value="trebleBoost">Treble Boost</option>
+                            <option value="electronic">Electronic</option>
+                            <option value="vocal">Vocal</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between items-end gap-2 sm:gap-4 py-4" id="eq-bands-container"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Mini Player -->
+    <div id="mini-player"
+        class="glass cursor-pointer flex items-center px-4 gap-4 hover:bg-slate-800/80 transition-colors">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-white/10">
+            <div id="mini-progress" class="h-full bg-gradient-to-r from-cyan-500 to-violet-500" style="width: 0%"></div>
+        </div>
+        <div id="mini-thumb-container"
+            class="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center shrink-0 shadow-inner overflow-hidden border border-white/10">
+            <i class="ph ph-music-notes text-2xl text-cyan-400 animate-pulse" id="mini-icon"></i>
+        </div>
+        <div class="flex flex-col flex-grow overflow-hidden">
+            <div class="marquee-container" id="mini-title-container">
+                <span id="mini-title" class="text-white font-medium text-sm marquee-text">No Track Playing</span>
+            </div>
+            <span id="mini-artist" class="text-slate-400 text-xs truncate">--</span>
+        </div>
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+            <button id="mini-btn-prev" class="p-2 text-white hover:text-cyan-400 transition-colors"><i
+                    class="ph-fill ph-skip-back text-xl"></i></button>
+            <button id="mini-btn-play" class="p-2 text-white hover:text-cyan-400 transition-colors">
+                <i class="ph-fill ph-play text-2xl" id="mini-icon-play"></i>
+                <i class="ph-fill ph-pause text-2xl hidden" id="mini-icon-pause"></i>
+            </button>
+            <button id="mini-btn-next" class="p-2 text-white hover:text-cyan-400 transition-colors"><i
+                    class="ph-fill ph-skip-forward text-xl"></i></button>
+        </div>
+    </div>
+
+    <!-- Full Player Modal -->
+    <div id="full-player-modal" class="glass">
+        <div class="bg-mesh opacity-50"></div>
+        <div id="volume-indicator"
+            class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900/80 backdrop-blur-md px-8 py-6 rounded-3xl flex-col items-center gap-2 z-50 border border-white/10 transition-opacity duration-300 opacity-0 pointer-events-none shadow-2xl">
+            <i class="ph ph-speaker-high text-4xl text-cyan-400" id="vol-indicator-icon"></i>
+            <span class="text-white font-bold text-2xl" id="vol-indicator-text">100%</span>
+        </div>
+        <div class="w-full h-full flex flex-col p-6 lg:p-10 relative z-10 max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <button id="btn-close-modal"
+                    class="p-2 rounded-full glass-panel hover:bg-white/10 transition-colors text-white">
+                    <i class="ph ph-caret-down text-2xl"></i>
+                </button>
+                <span class="text-xs font-medium tracking-widest uppercase text-slate-400">Now Playing</span>
+                <button class="p-2 opacity-0 cursor-default"><i class="ph ph-caret-down text-2xl"></i></button>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center relative w-full">
+                <div
+                    class="relative w-full max-w-2xl aspect-video sm:aspect-[21/9] rounded-3xl overflow-hidden glass-panel flex items-center justify-center mb-6 group border border-white/10 shadow-2xl">
+                    <img id="visualizer-thumb" src=""
+                        class="absolute inset-0 w-full h-full object-cover z-5 hidden opacity-40">
+                    <canvas id="visualizer" class="absolute inset-0 w-full h-full z-10"></canvas>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent z-0 pointer-events-none">
+                    </div>
+                    <div
+                        class="z-20 text-center opacity-50 transition-opacity flex flex-col items-center pointer-events-none">
+                        <i class="ph ph-waveform text-5xl mb-2 text-cyan-400 animate-pulse"></i>
+                        <p class="text-xs font-medium tracking-widest uppercase text-cyan-300" id="visualizer-status">
+                            Visualizer</p>
+                    </div>
+                </div>
+                <div class="text-center w-full max-w-xl px-4 flex flex-col items-center overflow-hidden">
+                    <div class="marquee-container w-full" id="modal-title-container">
+                        <h2 id="track-title"
+                            class="text-2xl sm:text-4xl font-bold mb-2 text-white drop-shadow-md marquee-text">No Track
+                            Selected</h2>
+                    </div>
+                    <p id="track-artist"
+                        class="text-slate-400 font-medium text-sm sm:text-base tracking-wide uppercase truncate mb-4">
+                        Add media to begin</p>
+                    <div class="flex items-center gap-4">
+                        <button id="modal-btn-fav"
+                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-pink-400">
+                            <i id="modal-icon-fav" class="ph ph-heart text-2xl"></i>
+                        </button>
+                        <button id="modal-btn-add-pl"
+                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-cyan-400">
+                            <i class="ph ph-plus text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full max-w-3xl mx-auto mt-4 flex flex-col gap-4">
+                <div class="w-full">
+                    <input type="range" id="progress-bar" value="0" min="0" max="100" step="0.1" class="w-full">
+                    <div class="flex justify-between text-xs text-slate-400 font-medium mt-1.5">
+                        <span id="time-current">0:00</span>
+                        <span id="time-total">0:00</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 sm:gap-4 w-1/3 justify-start">
+                        <button id="btn-shuffle"
+                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><i
+                                class="ph ph-shuffle text-xl"></i></button>
+                        <button id="btn-repeat"
+                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 relative">
+                            <i class="ph ph-repeat text-xl"></i>
+                            <span id="repeat-badge"
+                                class="absolute -top-1 -right-1 text-[9px] bg-cyan-500 text-slate-900 font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">1</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-4 sm:gap-6 w-1/3 justify-center">
+                        <button id="btn-prev"
+                            class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110"><i
+                                class="ph-fill ph-skip-back text-2xl"></i></button>
+                        <button id="btn-play-pause"
+                            class="text-white hover:text-cyan-400 transition-colors transform hover:scale-110 active:scale-95 p-2">
+                            <i class="ph-fill ph-play text-4xl drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+                                id="icon-play"></i>
+                            <i class="ph-fill ph-pause text-4xl drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] hidden"
+                                id="icon-pause"></i>
+                        </button>
+                        <button id="btn-next"
+                            class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110"><i
+                                class="ph-fill ph-skip-forward text-2xl"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2 volume-wrapper w-1/3 justify-end">
+                        <div class="relative ml-2 flex items-center justify-center">
+                            <button id="btn-speed"
+                                class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 w-11">1x</button>
+
+                            <!-- Speed Popup Options -->
+                            <div id="speed-menu"
+                                class="hidden absolute bottom-[130%] left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-50 animate-fade-in w-16">
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="2">2x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="1.5">1.5x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="1.25">1.25x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-center active-speed"
+                                    data-speed="1">1x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="0.5">0.5x</button>
+                            </div>
+                        </div>
+                        <button id="btn-mute" class="text-slate-400 hover:text-white transition-colors p-2"><i
+                                class="ph ph-speaker-high text-xl" id="icon-volume"></i></button>
+                        <div id="volume-drawer" class="volume-drawer"><input type="range" id="volume-bar" value="100"
+                                min="0" max="100" class="w-24"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audio-player" crossorigin="anonymous"></audio>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
