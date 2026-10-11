@@ -183,8 +183,8 @@
                         <span id="selected-count" class="text-xs text-slate-400">0 selected</span>
                     </div>
                     <button id="btn-delete-selected"
-                        class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
-                        <i class="ph ph-trash text-base"></i> Delete Selected
+                        class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
+                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Delete Selected</span>
                     </button>
                 </div>
 
@@ -268,8 +268,9 @@
                             <span id="selected-count-playlist" class="text-xs text-slate-400">0 selected</span>
                         </div>
                         <button id="btn-remove-selected-playlist"
-                            class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
-                            <i class="ph ph-x-circle text-base"></i> Remove from Playlist
+                            class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
+                            <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Remove from
+                                Playlist</span>
                         </button>
                     </div>
                     <div class="flex flex-col gap-2" id="playlist-tracks-list"></div>
@@ -296,8 +297,9 @@
                         <span id="selected-count-favorites" class="text-xs text-slate-400">0 selected</span>
                     </div>
                     <button id="btn-delete-selected-favorites"
-                        class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5">
-                        <i class="ph ph-trash text-base"></i> Remove from Favorites
+                        class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
+                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Remove from
+                            Favorites</span>
                     </button>
                 </div>
                 <div class="flex flex-col gap-2" id="favorites-list"></div>
@@ -322,8 +324,8 @@
                                 </button>
                             </div>
                             <button id="btn-paste-dl"
-                                class="bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-medium transition-all shadow-lg w-32 h-12 flex items-center justify-center gap-2 shrink-0">
-                                <i class="ph ph-clipboard text-lg"></i> Paste
+                                class="bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-medium transition-all shadow-lg w-12 sm:w-32 h-12 flex items-center justify-center gap-2 shrink-0">
+                                <i class="ph ph-clipboard text-lg"></i> <span class="hidden sm:inline">Paste</span>
                             </button>
                             <button id="btn-dl-identify"
                                 class="hidden bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-amber-500/20 w-32 h-12 flex items-center justify-center gap-2 shrink-0">
