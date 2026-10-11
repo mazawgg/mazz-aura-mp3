@@ -288,6 +288,23 @@ input[type=range]::-webkit-slider-thumb {
     pointer-events: all;
 }
 
+/* Sembunyikan checkbox di modal playlist secara default */
+#modal-available-tracks-list .modal-track-cb {
+    display: none !important;
+}
+
+/* Munculkan saat di-hover khusus layar desktop */
+@media (min-width: 1025px) {
+    #modal-available-tracks-list .group:hover .modal-track-cb {
+        display: block !important;
+    }
+}
+
+/* Munculkan jika kontainer masuk ke mode seleksi */
+#modal-available-tracks-list.selection-mode .modal-track-cb {
+    display: block !important;
+}
+
 #dnd-overlay {
     position: fixed;
     inset: 0;
@@ -315,7 +332,7 @@ input[type=range]::-webkit-slider-thumb {
 @media (max-width: 1024px) {
     #app-container {
         flex-direction: column;
-        padding-bottom: calc(var(--mini-player-height) + var(--bottom-nav-height));
+        padding-bottom: var(--bottom-nav-height);
     }
 
     #sidebar {
@@ -468,4 +485,28 @@ input[type=range]::-webkit-slider-thumb {
 
 .marquee-container:hover .marquee-text {
     animation-play-state: paused !important;
+}
+
+/* 1. Sembunyikan checkbox secara default di SEMUA layar (Mobile & Desktop) */
+.track-checkbox,
+.fav-checkbox,
+.pl-checkbox {
+    display: none !important;
+}
+
+/* 2. Tampilkan checkbox hanya saat lagu di-hover (Khusus Desktop / layar di atas 1024px) */
+@media (min-width: 1025px) {
+
+    .group:hover .track-checkbox,
+    .group:hover .fav-checkbox,
+    .group:hover .pl-checkbox {
+        display: block !important;
+    }
+}
+
+/* 3. Tampilkan SEMUA checkbox jika container masuk ke mode seleksi (ada lagu yang dicentang) */
+.selection-mode .track-checkbox,
+.selection-mode .fav-checkbox,
+.selection-mode .pl-checkbox {
+    display: block !important;
 }

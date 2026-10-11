@@ -55,7 +55,8 @@
                 <i class="ph ph-trash text-4xl"></i>
             </div>
             <h3 id="delete-modal-title" class="text-xl font-bold text-white mb-2">Delete Track?</h3>
-            <p id="delete-modal-desc" class="text-slate-400 text-sm mb-6">This track will be permanently removed from your library and playlists.</p>
+            <p id="delete-modal-desc" class="text-slate-400 text-sm mb-6">This track will be permanently removed from
+                your library and playlists.</p>
             <div class="flex justify-center gap-3">
                 <button id="btn-cancel-delete"
                     class="px-5 py-2.5 rounded-xl text-sm font-medium glass-panel hover:bg-white/10 transition-colors text-slate-300 w-full">Cancel</button>
@@ -70,6 +71,24 @@
         <i class="ph ph-music-notes-plus text-6xl text-cyan-400 mb-4 animate-bounce"></i>
         <h2 class="text-3xl font-bold text-white">Drop Audio Files Here</h2>
         <p class="text-slate-400 mt-2">Instantly add them to your local library</p>
+    </div>
+
+    <!-- Duplicate Warning Modal -->
+    <div id="duplicate-modal" class="custom-modal-overlay">
+        <div class="glass p-6 rounded-2xl w-full max-w-sm mx-4 border border-white/10 shadow-2xl text-center">
+            <div
+                class="w-16 h-16 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                <i class="ph ph-warning-circle text-4xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Track Already Exists</h3>
+            <p class="text-slate-400 text-sm mb-6">"<span id="duplicate-track-name"
+                    class="text-white font-medium"></span>" is already in your library.</p>
+            <div class="flex justify-center">
+                <button id="btn-close-duplicate"
+                    class="px-5 py-2.5 rounded-xl text-sm font-medium bg-amber-600 hover:bg-amber-500 text-white transition-colors shadow-lg shadow-amber-500/20 w-full">Got
+                    it</button>
+            </div>
+        </div>
     </div>
 
     <!-- Add Tracks to Playlist Modal (Modal Baru) -->
@@ -107,7 +126,7 @@
         <nav id="sidebar" class="glass flex flex-col justify-between p-4 h-full">
             <div class="flex lg:flex-col gap-2 w-full" id="nav-menu">
                 <button data-target="view-home"
-                    class="nav-item active flex items-center px-4 py-3 rounded-xl transition-all bg-white/10 text-white font-medium">
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
                     <i class="ph ph-house text-xl lg:mr-3 text-cyan-400"></i>
                     <span class="sidebar-label">Home</span>
                 </button>
@@ -368,14 +387,61 @@
                 <div class="glass-panel rounded-2xl p-6 border border-white/10 max-w-3xl mx-auto">
                     <div class="flex justify-between items-center mb-8">
                         <span class="text-white font-medium">Presets</span>
-                        <select id="eq-presets"
-                            class="bg-slate-900 border border-white/20 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none">
-                            <option value="flat">Flat</option>
-                            <option value="bassBoost">Bass Boost</option>
-                            <option value="trebleBoost">Treble Boost</option>
-                            <option value="electronic">Electronic</option>
-                            <option value="vocal">Vocal</option>
-                        </select>
+                        <!-- Custom Select Dropdown Equalizer -->
+                        <div class="relative inline-block">
+                            <button id="eq-dropdown-btn"
+                                class="bg-slate-900 border border-white/20 hover:border-cyan-500 text-white text-sm rounded-lg px-4 py-2.5 transition-colors flex items-center justify-between gap-4 min-w-[140px]">
+                                <span id="eq-current-label">Flat</span>
+                                <i class="ph ph-caret-down text-slate-400"></i>
+                            </button>
+
+                            <!-- Popup Options (Gaya mirip speed-menu) -->
+                            <div id="eq-menu"
+                                class="hidden absolute top-[115%] right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-50 animate-fade-in w-full min-w-[150px] max-h-60 overflow-y-auto scrollbar-thin">
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-left active-eq"
+                                    data-preset="flat">Flat</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="bassBoost">Bass Boost</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="trebleBoost">Treble Boost</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="electronic">Electronic</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="vocal">Vocal</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="acoustic">Acoustic</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="classical">Classical</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="pop">Pop</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="rock">Rock</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="hiphop">Hip-Hop / R&B</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="jazz">Jazz</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="podcast">Podcast / Voice</button>
+                                <button
+                                    class="eq-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-preset="lofi">Lo-Fi / Chill</button>
+                            </div>
+
+                            <!-- Hidden input sebagai penyambung ke logika JS lama -->
+                            <input type="hidden" id="eq-presets" value="flat">
+                        </div>
                     </div>
                     <div class="flex justify-between items-end gap-2 sm:gap-4 py-4" id="eq-bands-container"></div>
                 </div>
@@ -420,13 +486,43 @@
             <span class="text-white font-bold text-2xl" id="vol-indicator-text">100%</span>
         </div>
         <div class="w-full h-full flex flex-col p-6 lg:p-10 relative z-10 max-w-6xl mx-auto">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-center mb-4 relative z-50">
+                <!-- Tombol Close (Kiri) -->
                 <button id="btn-close-modal"
-                    class="p-2 rounded-full glass-panel hover:bg-white/10 transition-colors text-white">
+                    class="p-2 rounded-full hover:bg-white/10 transition-colors text-white z-10">
                     <i class="ph ph-caret-down text-2xl"></i>
                 </button>
-                <span class="text-xs font-medium tracking-widest uppercase text-slate-400">Now Playing</span>
-                <button class="p-2 opacity-0 cursor-default"><i class="ph ph-caret-down text-2xl"></i></button>
+
+                <!-- Teks Now Playing (Tengah Mutlak) -->
+                <span
+                    class="absolute left-1/2 -translate-x-1/2 text-xs font-medium tracking-widest uppercase text-slate-400 pointer-events-none">Now
+                    Playing</span>
+
+                <!-- TOMBOL SPEED (Kanan) -->
+                <div class="relative flex items-center justify-center z-10">
+                    <button id="btn-speed"
+                        class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 w-11">1x</button>
+
+                    <!-- Speed Popup Options -->
+                    <div id="speed-menu"
+                        class="hidden absolute top-[130%] right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-50 animate-fade-in w-16">
+                        <button
+                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                            data-speed="2">2x</button>
+                        <button
+                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                            data-speed="1.5">1.5x</button>
+                        <button
+                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                            data-speed="1.25">1.25x</button>
+                        <button
+                            class="speed-opt px-3 py-2 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-center active-speed"
+                            data-speed="1">1x</button>
+                        <button
+                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                            data-speed="0.5">0.5x</button>
+                    </div>
+                </div>
             </div>
             <div class="flex-1 flex flex-col items-center justify-center relative w-full">
                 <div
@@ -473,19 +569,26 @@
                         <span id="time-total">0:00</span>
                     </div>
                 </div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2 sm:gap-4 w-1/3 justify-start">
+                <div class="flex items-center justify-between relative w-full">
+
+                    <!-- KIRI: Shuffle (dan Repeat untuk Desktop) -->
+                    <div class="flex items-center gap-2 sm:gap-4 w-1/3 justify-start static sm:relative">
                         <button id="btn-shuffle"
                             class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><i
                                 class="ph ph-shuffle text-xl"></i></button>
+
+                        <!-- TOMBOL REPEAT (Absolute ke kanan khusus Mobile) -->
                         <button id="btn-repeat"
-                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 relative">
+                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 absolute right-0 sm:relative sm:right-auto">
                             <i class="ph ph-repeat text-xl"></i>
                             <span id="repeat-badge"
                                 class="absolute -top-1 -right-1 text-[9px] bg-cyan-500 text-slate-900 font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">1</span>
                         </button>
                     </div>
-                    <div class="flex items-center gap-4 sm:gap-6 w-1/3 justify-center">
+
+                    <!-- TENGAH: Prev, Play, Next -->
+                    <div
+                        class="flex items-center gap-4 sm:gap-6 justify-center absolute left-1/2 -translate-x-1/2 sm:static sm:translate-x-0 sm:w-1/3">
                         <button id="btn-prev"
                             class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110"><i
                                 class="ph-fill ph-skip-back text-2xl"></i></button>
@@ -500,35 +603,15 @@
                             class="text-white hover:text-cyan-400 transition-colors p-2 transform hover:scale-110"><i
                                 class="ph-fill ph-skip-forward text-2xl"></i></button>
                     </div>
-                    <div class="flex items-center gap-2 volume-wrapper w-1/3 justify-end">
-                        <div class="relative ml-2 flex items-center justify-center">
-                            <button id="btn-speed"
-                                class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 w-11">1x</button>
 
-                            <!-- Speed Popup Options -->
-                            <div id="speed-menu"
-                                class="hidden absolute bottom-[130%] left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-50 animate-fade-in w-16">
-                                <button
-                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                                    data-speed="2">2x</button>
-                                <button
-                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                                    data-speed="1.5">1.5x</button>
-                                <button
-                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                                    data-speed="1.25">1.25x</button>
-                                <button
-                                    class="speed-opt px-3 py-2 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-center active-speed"
-                                    data-speed="1">1x</button>
-                                <button
-                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                                    data-speed="0.5">0.5x</button>
-                            </div>
-                        </div>
-                        <button id="btn-mute" class="text-slate-400 hover:text-white transition-colors p-2"><i
+                    <!-- KANAN: Volume & Speed -->
+                    <div class="flex items-center gap-2 volume-wrapper w-0 sm:w-1/3 justify-end">
+                        <!-- TOMBOL VOLUME (Dihilangkan khusus Mobile) -->
+                        <button id="btn-mute"
+                            class="hidden sm:block text-slate-400 hover:text-white transition-colors p-2"><i
                                 class="ph ph-speaker-high text-xl" id="icon-volume"></i></button>
-                        <div id="volume-drawer" class="volume-drawer"><input type="range" id="volume-bar" value="100"
-                                min="0" max="100" class="w-24"></div>
+                        <div id="volume-drawer" class="hidden sm:flex volume-drawer"><input type="range" id="volume-bar"
+                                value="100" min="0" max="100" class="w-24"></div>
                     </div>
                 </div>
             </div>

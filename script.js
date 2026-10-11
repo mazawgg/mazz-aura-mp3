@@ -108,7 +108,20 @@ const DOM = {
     volumeIndicator: document.getElementById('volume-indicator'),
     volIndicatorIcon: document.getElementById('vol-indicator-icon'),
     volIndicatorText: document.getElementById('vol-indicator-text'),
+    duplicateModal: document.getElementById('duplicate-modal'),
+    btnCloseDuplicate: document.getElementById('btn-close-duplicate'),
+    duplicateTrackName: document.getElementById('duplicate-track-name'),
 };
+
+function showDuplicateModal(trackName) {
+    if (DOM.duplicateTrackName) DOM.duplicateTrackName.textContent = trackName;
+    if (DOM.duplicateModal) DOM.duplicateModal.classList.add('active');
+}
+
+// Tutup modal duplikat
+DOM.btnCloseDuplicate?.addEventListener('click', () => {
+    DOM.duplicateModal.classList.remove('active');
+});
 
 // --- IndexedDB Wrapper ---
 const DB_NAME = 'AuraAudioDB';
@@ -167,7 +180,15 @@ const eqPresetValues = {
     bassBoost: [8, 5, 0, -2, -4],
     trebleBoost: [-4, -2, 0, 5, 8],
     electronic: [6, 3, -2, 4, 6],
-    vocal: [-2, 1, 6, 4, -1]
+    vocal: [-2, 1, 6, 4, -1],
+    acoustic: [1, 2, 4, 3, 1],
+    classical: [4, 2, 0, 2, 4],
+    pop: [2, 3, 4, 3, 1],
+    rock: [6, 3, -2, 4, 5],
+    hiphop: [7, 4, 0, 2, 4],
+    jazz: [4, 3, -1, 3, 4],
+    podcast: [-4, -1, 5, 4, 1],
+    lofi: [5, 4, 1, -2, -6]
 };
 
 function buildEQUI() {
@@ -193,6 +214,15 @@ function buildEQUI() {
             const val = parseFloat(e.target.value);
             if (eqFilters[idx]) eqFilters[idx].gain.value = val;
             DOM.eqPresets.value = 'custom';
+            const eqLabel = document.getElementById('eq-current-label');
+            if (eqLabel) {
+                eqLabel.textContent = 'Custom';
+                // Reset semua highlight warna di menu dropdown
+                document.querySelectorAll('.eq-opt').forEach(o => {
+                    o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+                    o.classList.add('text-slate-300');
+                });
+            }
         });
     });
 }
@@ -205,8 +235,53 @@ function applyEQPreset(presetName) {
     });
 }
 
-DOM.eqPresets.addEventListener('change', (e) => {
-    if (e.target.value !== 'custom') applyEQPreset(e.target.value);
+// --- EQUALIZER CUSTOM DROPDOWN CONTROL ---
+const eqDropdownBtn = document.getElementById('eq-dropdown-btn');
+const eqMenu = document.getElementById('eq-menu');
+const eqCurrentLabel = document.getElementById('eq-current-label');
+const eqOpts = document.querySelectorAll('.eq-opt');
+
+// Tampilkan / Sembunyikan popup saat tombol diklik
+eqDropdownBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    eqMenu.classList.toggle('hidden');
+    eqMenu.classList.toggle('flex');
+});
+
+// Aksi ketika salah satu pilihan preset diklik
+eqOpts.forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const presetValue = opt.dataset.preset;
+        const presetText = opt.textContent;
+
+        // Ubah teks tombol dan input hidden
+        eqCurrentLabel.textContent = presetText;
+        DOM.eqPresets.value = presetValue;
+
+        // Terapkan preset Equalizer
+        applyEQPreset(presetValue);
+
+        // Atur ulang warna opsi yang aktif
+        eqOpts.forEach(o => {
+            o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+            o.classList.add('text-slate-300');
+        });
+        opt.classList.remove('text-slate-300');
+        opt.classList.add('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+
+        // Tutup menu
+        eqMenu.classList.add('hidden');
+        eqMenu.classList.remove('flex');
+    });
+});
+
+// Tutup menu jika user klik di luar area
+document.addEventListener('click', (e) => {
+    if (eqMenu && !eqMenu.contains(e.target) && e.target !== eqDropdownBtn && !eqDropdownBtn.contains(e.target)) {
+        eqMenu.classList.add('hidden');
+        eqMenu.classList.remove('flex');
+    }
 });
 
 function initAudioContext() {
@@ -229,6 +304,7 @@ function initAudioContext() {
 
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5;
         prevNode.connect(analyser);
         analyser.connect(audioCtx.destination);
 
@@ -472,20 +548,24 @@ function renderLibrary(query = '') {
     }
     if (filtered.length === 0) {
         DOM.libraryList.innerHTML = `<div class="text-center text-slate-500 py-10">No tracks found. Drop audio files or add URL.</div>`;
+        updateBatchBarUI(0);
         return;
     }
     DOM.libraryList.innerHTML = filtered.map(t => createTrackHTML(t, 'library')).join('');
     attachTrackListeners(DOM.libraryList, filtered);
+    updateBatchBarUI(filtered.length);
 }
 
 function renderFavorites() {
     const favs = state.tracks.filter(t => t.isFavorite);
     if (favs.length === 0) {
         DOM.favoritesList.innerHTML = `<div class="text-center text-slate-500 py-10">No favorites yet.</div>`;
+        updateFavoritesBatchUI(0);
         return;
     }
     DOM.favoritesList.innerHTML = favs.map(t => createTrackHTML(t, 'favorites')).join('');
     attachTrackListeners(DOM.favoritesList, favs);
+    updateFavoritesBatchUI(favs.length);
 }
 
 function renderPlaylists() {
@@ -574,7 +654,7 @@ function renderPlaylistTracks(pl) {
 let tempSelectedTracksForModal = new Set(); // State sementara untuk modal
 
 function openAddTracksModal(pl) {
-    tempSelectedTracksForModal.clear(); // Reset pilihan modal
+    tempSelectedTracksForModal.clear();
     const availableTracks = state.tracks.filter(t => !pl.trackIds.includes(t.id));
     const listContainer = document.getElementById('modal-available-tracks-list');
     const selectAllCb = document.getElementById('modal-select-all-tracks');
@@ -592,18 +672,18 @@ function openAddTracksModal(pl) {
         confirmBtn.classList.remove('hidden');
         selectAllCb.disabled = false;
 
-        // Render lagu yang tersedia
+        // Render lagu dengan struktur group dan checkbox bersyarat
         listContainer.innerHTML = availableTracks.map(t => `
-                <label class="flex items-center justify-between p-3 rounded-xl cursor-pointer glass-panel glass-hover transition-all">
-                    <div class="flex items-center gap-3 overflow-hidden">
-                        <input type="checkbox" class="modal-track-cb w-4 h-4 accent-cyan-500 rounded cursor-pointer shrink-0" value="${t.id}">
-                        <div class="flex flex-col truncate">
-                            <span class="text-sm font-semibold text-slate-200 truncate">${t.name}</span>
-                            <span class="text-xs text-slate-500 mt-0.5">${t.type === 'local' ? 'Local File' : 'Stream URL'}</span>
-                        </div>
+            <label class="group flex items-center justify-between p-3 rounded-xl cursor-pointer glass-panel glass-hover transition-all modal-track-item" data-id="${t.id}">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <input type="checkbox" class="modal-track-cb w-4 h-4 accent-cyan-500 rounded cursor-pointer shrink-0" value="${t.id}">
+                    <div class="flex flex-col truncate">
+                        <span class="text-sm font-semibold text-slate-200 truncate">${t.name}</span>
+                        <span class="text-xs text-slate-500 mt-0.5">${t.type === 'local' ? 'Local File' : 'Stream URL'}</span>
                     </div>
-                </label>
-            `).join('');
+                </div>
+            </label>
+        `).join('');
 
         // Listener Checkbox Satuan di dalam Modal
         listContainer.querySelectorAll('.modal-track-cb').forEach(cb => {
@@ -614,7 +694,36 @@ function openAddTracksModal(pl) {
 
                 countLabel.textContent = `${tempSelectedTracksForModal.size} selected`;
                 selectAllCb.checked = tempSelectedTracksForModal.size === availableTracks.length;
+
+                // Toggle class selection-mode pada list container modal
+                const parentList = document.getElementById('modal-available-tracks-list');
+                if (tempSelectedTracksForModal.size > 0) parentList.classList.add('selection-mode');
+                else parentList.classList.remove('selection-mode');
             });
+        });
+
+        // TAMBAHKAN FITUR LONG PRESS JUGA DI DALAM MODAL (Opsional tapi keren di HP)
+        listContainer.querySelectorAll('.modal-track-item').forEach(trackEl => {
+            let pressTimer;
+            const startPress = (e) => {
+                if (e.target.closest('input[type="checkbox"]')) return;
+                pressTimer = setTimeout(() => {
+                    const cb = trackEl.querySelector('.modal-track-cb');
+                    if (cb && !cb.checked) {
+                        cb.checked = true;
+                        cb.dispatchEvent(new Event('change'));
+                        if (navigator.vibrate) navigator.vibrate(50);
+                    }
+                }, 400);
+            };
+            const cancelPress = () => clearTimeout(pressTimer);
+
+            trackEl.addEventListener('touchstart', startPress, { passive: true });
+            trackEl.addEventListener('touchend', cancelPress);
+            trackEl.addEventListener('touchmove', cancelPress);
+            trackEl.addEventListener('mousedown', startPress);
+            trackEl.addEventListener('mouseup', cancelPress);
+            trackEl.addEventListener('mouseleave', cancelPress);
         });
     }
 
@@ -632,13 +741,16 @@ document.getElementById('modal-select-all-tracks')?.addEventListener('change', (
     if (!pl) return;
     const availableTracks = state.tracks.filter(t => !pl.trackIds.includes(t.id));
     const checkboxes = document.querySelectorAll('.modal-track-cb');
+    const parentList = document.getElementById('modal-available-tracks-list');
 
     if (e.target.checked) {
         availableTracks.forEach(t => tempSelectedTracksForModal.add(t.id));
         checkboxes.forEach(cb => cb.checked = true);
+        parentList.classList.add('selection-mode');
     } else {
         tempSelectedTracksForModal.clear();
         checkboxes.forEach(cb => cb.checked = false);
+        parentList.classList.remove('selection-mode');
     }
     document.getElementById('modal-selected-tracks-count').textContent = `${tempSelectedTracksForModal.size} selected`;
 });
@@ -739,8 +851,10 @@ function updateBatchBarUI(filteredTracksLength) {
     const count = state.selectedTrackIds.size;
     if (count > 0 && state.activeView === 'view-home') {
         batchBar.classList.remove('hidden'); batchBar.classList.add('flex');
+        DOM.libraryList.classList.add('selection-mode'); // <-- Aktifkan checkbox
     } else {
         batchBar.classList.add('hidden');
+        DOM.libraryList.classList.remove('selection-mode'); // <-- Sembunyikan checkbox
     }
     document.getElementById('selected-count').textContent = `${count} selected`;
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
@@ -752,8 +866,10 @@ function updateFavoritesBatchUI(favsLength) {
     const count = state.selectedFavIds.size;
     if (count > 0 && state.activeView === 'view-favorites') {
         bar.classList.remove('hidden'); bar.classList.add('flex');
+        DOM.favoritesList.classList.add('selection-mode');
     } else {
         bar.classList.add('hidden');
+        DOM.favoritesList.classList.remove('selection-mode');
     }
     document.getElementById('selected-count-favorites').textContent = `${count} selected`;
     const selectAll = document.getElementById('select-all-checkbox-favorites');
@@ -765,8 +881,10 @@ function updatePlaylistBatchUI(plTracksLength) {
     const count = state.selectedPlTrackIds.size;
     if (count > 0 && state.currentPlaylistId !== null) {
         bar.classList.remove('hidden'); bar.classList.add('flex');
+        DOM.playlistTracksList.classList.add('selection-mode');
     } else {
         bar.classList.add('hidden');
+        DOM.playlistTracksList.classList.remove('selection-mode');
     }
     document.getElementById('selected-count-playlist').textContent = `${count} selected`;
     const selectAll = document.getElementById('select-all-checkbox-playlist');
@@ -775,13 +893,60 @@ function updatePlaylistBatchUI(plTracksLength) {
 
 // --- Attach Listeners to List Items ---
 function attachTrackListeners(container, trackList, playlistId = null) {
+
+    // --- KODE LONG PRESS YANG DIPERBAIKI ---
+    let isLongPressing = false; // Penanda global untuk membedakan klik biasa dan tahan
+
+    container.querySelectorAll('div[data-id]').forEach(trackEl => {
+        let pressTimer;
+
+        const startPress = (e) => {
+            // Abaikan jika yang ditekan sudah berupa checkbox atau tombol aksi
+            if (e.target.closest('input[type="checkbox"]') || e.target.closest('button')) return;
+
+            isLongPressing = false;
+            pressTimer = setTimeout(() => {
+                isLongPressing = true; // Tandai bahwa user sedang Long Press
+                const cb = trackEl.querySelector('input[type="checkbox"]');
+                if (cb && !cb.checked) {
+                    cb.checked = true;
+                    cb.dispatchEvent(new Event('change'));
+                    if (navigator.vibrate) navigator.vibrate(50); // Getar halus
+                }
+            }, 400); // Dibuat 400ms agar terasa lebih responsif
+        };
+
+        const cancelPress = () => {
+            clearTimeout(pressTimer);
+            // Beri jeda sedikit saat melepas jari agar event 'click' bawaan browser bisa dicegat
+            setTimeout(() => { isLongPressing = false; }, 50);
+        };
+
+        // Listener
+        trackEl.addEventListener('touchstart', startPress, { passive: true });
+        trackEl.addEventListener('touchend', cancelPress);
+        trackEl.addEventListener('touchmove', cancelPress); // Batal jika user men-scroll
+        trackEl.addEventListener('mousedown', startPress);
+        trackEl.addEventListener('mouseup', cancelPress);
+        trackEl.addEventListener('mouseleave', cancelPress);
+    });
+    // --- BATAS KODE LONG PRESS ---
+
     // 1. Play Trigger
     container.querySelectorAll('.track-play-trigger').forEach(trigger => {
-        trigger.addEventListener('click', () => {
+        trigger.addEventListener('click', (e) => {
+
+            // CEGAH LAGU KE-PLAY JIKA USER SEDANG LONG PRESS
+            if (isLongPressing) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
+            // --- Kode play aslimu di bawah ini ---
             const id = parseInt(trigger.closest('[data-id]').dataset.id);
             const idx = trackList.findIndex(t => t.id === id);
             if (idx !== -1) {
-                // Gunakan spread operator [...] untuk membuat copy array terpisah
                 state.playbackQueue = [...trackList];
                 loadTrack(idx);
             }
@@ -1144,6 +1309,14 @@ DOM.btnCheckUrl.addEventListener('click', async () => {
 
 DOM.btnSubmitUrl.addEventListener('click', async () => {
     if (!state.identifiedStream) return;
+
+    // Cek Duplikat
+    const isExist = state.tracks.some(t => t.name.toLowerCase() === state.identifiedStream.title.toLowerCase());
+    if (isExist) {
+        showDuplicateModal(state.identifiedStream.title);
+        return; // Hentikan proses jika duplikat
+    }
+
     const track = { id: Date.now(), name: state.identifiedStream.title, type: state.identifiedStream.type, url: state.identifiedStream.url, cover: state.identifiedStream.cover, isFavorite: false };
     await dbOp('tracks', 'readwrite', s => s.put(track));
     state.tracks.push(track);
@@ -1205,6 +1378,11 @@ DOM.btnDlConvert.addEventListener('click', async () => {
 
 DOM.btnDlAddLibOnly.addEventListener('click', async () => {
     if (!state.identifiedYt) return;
+    const isExist = state.tracks.some(t => t.name.toLowerCase() === state.identifiedYt.title.toLowerCase());
+    if (isExist) {
+        showDuplicateModal(state.identifiedYt.title);
+        return; // Hentikan proses
+    }
     const track = { id: Date.now(), name: state.identifiedYt.title, type: 'youtube', url: state.identifiedYt.streamUrl, cover: state.identifiedYt.cover, isFavorite: false };
     await dbOp('tracks', 'readwrite', s => s.put(track));
     state.tracks.push(track);
@@ -1496,14 +1674,14 @@ DOM.searchInput.addEventListener('input', (e) => renderLibrary(e.target.value));
 
 async function handleFiles(files) {
     let addedCount = 0;
+    let skippedCount = 0; // Penghitung file duplikat
+    let lastSkippedName = "";
 
-    // Fungsi bantuan untuk membaca ID3 tags (cover dll)
     const getCoverArt = (file) => new Promise((resolve) => {
         window.jsmediatags.read(file, {
             onSuccess: function (tag) {
                 const picture = tag.tags.picture;
                 if (picture) {
-                    // Convert array buffer to base64
                     let base64String = "";
                     for (let i = 0; i < picture.data.length; i++) {
                         base64String += String.fromCharCode(picture.data[i]);
@@ -1519,34 +1697,52 @@ async function handleFiles(files) {
         });
     });
 
-    showToast(`Processing ${files.length} file(s)...`); // Feedback visual karena ekstraksi foto memakan sedikit waktu
+    showToast(`Processing ${files.length} file(s)...`);
 
     for (let file of files) {
         if (!file.type.startsWith('audio/')) continue;
 
-        // Ekstrak cover
+        const trackName = file.name.replace(/\.[^/.]+$/, "");
+
+        // Cek Duplikat
+        const isExist = state.tracks.some(t => t.name.toLowerCase() === trackName.toLowerCase());
+        if (isExist) {
+            skippedCount++;
+            lastSkippedName = trackName;
+            continue; // Lewati file ini jika sudah ada
+        }
+
         const coverUrl = await getCoverArt(file);
 
         const track = {
             id: Date.now() + Math.floor(Math.random() * 1000),
-            name: file.name.replace(/\.[^/.]+$/, ""),
+            name: trackName,
             type: 'local',
             blob: file,
-            cover: coverUrl, // <-- Simpan thumbnail ke track object
+            cover: coverUrl,
             isFavorite: false
         };
         await dbOp('tracks', 'readwrite', s => s.put(track));
         state.tracks.push(track);
         addedCount++;
     }
+
     if (addedCount > 0) {
         renderLibrary();
         showToast(`Added ${addedCount} local track(s)`);
     }
+
+    // Tampilkan peringatan jika ada lagu yang di-skip karena duplikat
+    if (skippedCount > 0) {
+        const warningName = skippedCount === 1 ? lastSkippedName : `${skippedCount} files`;
+        showDuplicateModal(warningName);
+    }
 }
 
 DOM.fileInput.addEventListener('change', (e) => {
-    handleFiles(e.target.files);
+    const filesArray = Array.from(e.target.files);
+
+    handleFiles(filesArray);
     e.target.value = '';
 });
 
@@ -1556,7 +1752,7 @@ DOM.dndOverlay.addEventListener('drop', (e) => {
     e.preventDefault();
     DOM.dndOverlay.classList.remove('active');
     if (e.dataTransfer.files.length > 0) {
-        handleFiles(e.dataTransfer.files);
+        handleFiles(Array.from(e.dataTransfer.files));
         if (state.activeView !== 'view-home') switchView('view-home');
     }
 });
