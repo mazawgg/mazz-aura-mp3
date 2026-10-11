@@ -223,6 +223,14 @@ input[type=range]::-webkit-slider-thumb {
     display: flex;
     height: 100dvh;
     width: 100vw;
+    box-sizing: border-box; /* Sangat penting agar padding tidak membuat layar jebol ke bawah */
+    padding-bottom: 0; /* Padding awal kosong untuk desktop */
+    transition: padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Saat lagu diputar di desktop, beri jarak bawah sebesar mini player */
+#app-container.has-mini-player {
+    padding-bottom: var(--mini-player-height);
 }
 
 #sidebar {
@@ -332,9 +340,14 @@ input[type=range]::-webkit-slider-thumb {
 @media (max-width: 1024px) {
     #app-container {
         flex-direction: column;
-        padding-bottom: var(--bottom-nav-height);
+        /* Di mobile, padding awal setinggi bottom-nav */
+        padding-bottom: var(--bottom-nav-height); 
     }
-
+    
+    /* Saat lagu diputar di mobile, padding = mini player + bottom nav */
+    #app-container.has-mini-player {
+        padding-bottom: calc(var(--mini-player-height) + var(--bottom-nav-height));
+    }
     #sidebar {
         width: 100%;
         height: var(--bottom-nav-height);

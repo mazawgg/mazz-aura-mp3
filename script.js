@@ -111,6 +111,7 @@ const DOM = {
     duplicateModal: document.getElementById('duplicate-modal'),
     btnCloseDuplicate: document.getElementById('btn-close-duplicate'),
     duplicateTrackName: document.getElementById('duplicate-track-name'),
+    appContainer: document.getElementById('app-container'),
 };
 
 function showDuplicateModal(trackName) {
@@ -660,6 +661,8 @@ function openAddTracksModal(pl) {
     const selectAllCb = document.getElementById('modal-select-all-tracks');
     const countLabel = document.getElementById('modal-selected-tracks-count');
     const confirmBtn = document.getElementById('btn-confirm-add-tracks');
+
+    listContainer.classList.remove('selection-mode');
 
     selectAllCb.checked = false;
     countLabel.textContent = '0 selected';
@@ -1429,6 +1432,7 @@ async function loadTrack(index) {
         setPlayerBackground(track.cover);
 
         DOM.miniPlayer.classList.add('visible');
+        DOM.appContainer.classList.add('has-mini-player');
         refreshAllViews();
         updateMarqueeEffect('mini-title-container', 'mini-title');
         updateMarqueeEffect('modal-title-container', 'track-title');
@@ -1497,8 +1501,92 @@ function playPrev(e) {
     }
 }
 
+// ==========================================
+// --- SWIPE DOWN TO CLOSE MINI PLAYER ---
+// ==========================================
+let miniStartY = 0;
+let miniCurrentY = 0;
+let isMiniDragging = false;
+let hasSwipedMini = false;
+
+DOM.miniPlayer.addEventListener('touchstart', (e) => {
+    if (e.target.closest('button')) return; // Abaikan jika menekan tombol play/next
+
+    miniStartY = e.touches[0].clientY;
+    isMiniDragging = true;
+    hasSwipedMini = false;
+    
+    // Matikan transisi CSS sementara agar mini player responsif mengikuti jari
+    DOM.miniPlayer.style.transition = 'none';
+}, {passive: true});
+
+DOM.miniPlayer.addEventListener('touchmove', (e) => {
+    if (!isMiniDragging) return;
+    
+    miniCurrentY = e.touches[0].clientY;
+    const deltaY = miniCurrentY - miniStartY;
+
+    // Hanya izinkan pergerakan swipe ke arah BAWAH
+    if (deltaY > 0) {
+        hasSwipedMini = true; // Menandakan bahwa user sedang menggeser, bukan sekadar klik
+        DOM.miniPlayer.style.transform = `translateY(${deltaY}px)`;
+        DOM.miniPlayer.style.opacity = 1 - (deltaY / 200); // Efek memudar saat ditarik
+    }
+}, {passive: true});
+
+DOM.miniPlayer.addEventListener('touchend', (e) => {
+    if (!isMiniDragging) return;
+    isMiniDragging = false;
+    
+    // Kembalikan transisi CSS seperti semula
+    DOM.miniPlayer.style.transition = '';
+
+    const deltaY = miniCurrentY - miniStartY;
+
+    // Jika digeser ke bawah lebih dari 50px, tutup player-nya
+    if (hasSwipedMini && deltaY > 50) {
+        closeMiniPlayer();
+    } else {
+        // Jika geseran batal/kurang dari 50px, kembalikan ke posisi semula secara mulus
+        DOM.miniPlayer.style.transform = '';
+        DOM.miniPlayer.style.opacity = '';
+    }
+});
+
+// Fungsi untuk menutup & membersihkan player
+function closeMiniPlayer() {
+    pauseAudio();
+    state.playbackQueue = []; 
+    state.currentIndex = -1;
+    
+    DOM.miniPlayer.classList.remove('visible');
+    DOM.appContainer.classList.remove('has-mini-player'); // Mengurangi padding bawah seketika
+    
+    // Bersihkan style inline yang tersisa dari geseran
+    setTimeout(() => {
+        DOM.miniPlayer.style.transform = ''; 
+        DOM.miniPlayer.style.opacity = '';
+    }, 300);
+
+    // Reset teks
+    DOM.trackTitle.textContent = "No Track Selected";
+    DOM.trackArtist.textContent = "Add media to begin";
+    DOM.miniTitle.textContent = "No Track Playing";
+    DOM.miniArtist.textContent = "--";
+    DOM.miniThumbContainer.innerHTML = `<i class="ph ph-music-notes text-2xl text-cyan-400 animate-pulse" id="mini-icon"></i>`;
+    setPlayerBackground(null);
+}
+
+// LOGIKA KLIK MINI PLAYER (MEMBUKA FULL PLAYER)
 DOM.miniPlayer.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
+    
+    // CEGAH MODAL FULL PLAYER TERBUKA JIKA USER BARU SAJA MENGGESER KE BAWAH
+    if (hasSwipedMini) {
+        hasSwipedMini = false; 
+        return;
+    }
+
     DOM.fullPlayerModal.classList.add('open');
     if (state.audioContextInitialized) resizeCanvas();
     setTimeout(() => updateMarqueeEffect('modal-title-container', 'track-title'), 100);
