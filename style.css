@@ -401,6 +401,14 @@ input[type=range]::-webkit-slider-thumb {
     padding-left: 4px;
 }
 
+@media (max-width: 1024px) and (orientation: portrait) {
+    #full-player-modal .max-w-3xl.mx-auto {
+        margin-bottom: 30px !important;
+        /* Tambahan otomatis untuk menyesuaikan garis 'Home' di iPhone X ke atas */
+        padding-bottom: env(safe-area-inset-bottom) !important; 
+    }
+}
+
 @media (min-width: 640px) {
     .volume-wrapper:hover .volume-drawer {
         width: 104px;
@@ -522,4 +530,177 @@ input[type=range]::-webkit-slider-thumb {
 .selection-mode .fav-checkbox,
 .selection-mode .pl-checkbox {
     display: block !important;
+}
+
+/* =========================================================
+   LANDSCAPE MODE RESPONSIVE FULL PLAYER (MOBILE HORIZONTAL)
+   ========================================================= */
+@media (max-height: 600px) and (orientation: landscape) and (max-width: 1024px) {
+    /* 1. Base Modal Adjustments (Support SafeArea/Notch) */
+    #full-player-modal .w-full.h-full.flex.flex-col {
+        padding: 16px max(40px, env(safe-area-inset-right)) 12px max(40px, env(safe-area-inset-left)) !important;
+    }
+
+    /* 2. KOTAK VISUALIZER JADI BACKGROUND FULL SCREEN */
+    #full-player-modal .aspect-video {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        border-radius: 0 !important;
+        border: none !important;
+        margin: 0 !important;
+        z-index: 0 !important;
+        background: rgba(15, 23, 42, 1) !important;
+    }
+    
+    #visualizer-thumb, #visualizer {
+        object-fit: cover !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        opacity: 0.4 !important; /* Diredupkan agar teks terbaca */
+    }
+    
+    /* Sembunyikan icon & teks "Visualizer" di tengah layar */
+    #full-player-modal .ph-waveform, 
+    #visualizer-status {
+        display: none !important;
+    }
+    
+    /* Gradient bawah diredupkan agar slider lagu jelas */
+    #full-player-modal .bg-gradient-to-t {
+        background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0) 70%) !important;
+    }
+
+    /* 3. HEADER AREA */
+    #full-player-modal .flex.justify-between.items-center.mb-4 {
+        z-index: 50 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* SEMBUNYIKAN TULISAN "NOW PLAYING" BAWAAN */
+    #full-player-modal .flex.justify-between.items-center.mb-4 > span {
+        display: none !important;
+    }
+
+    /* 4 & 5. INFO LAGU (TITLE) & TOMBOL (LOVE/PLUS) DI PINDAH KE ATAS */
+    
+    /* Bungkus utama info lagu dibikin melayang transparan di atas */
+    #full-player-modal .text-center.w-full.max-w-xl {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 60px !important;
+        z-index: 60 !important; /* Harus lebih tinggi dari header (50) agar klik tidak ngebug */
+        pointer-events: none !important; /* Tembus klik agar tidak menghalangi area tengah */
+        padding: 0 !important;
+        margin: 0 !important;
+        transform: none !important;
+    }
+    
+    /* Judul Lagu (Title) menggantikan Now Playing di tengah atas */
+    #modal-title-container {
+        position: fixed !important;
+        top: 20px !important; /* Sejajarkan dengan header */
+        
+        /* Penghalang presisi di kiri (sebelah tombol kembali) dan kanan */
+        left: calc(max(40px, env(safe-area-inset-left)) + 50px) !important; 
+        right: calc(max(40px, env(safe-area-inset-right)) + 160px) !important; /* Jarak aman dari tombol love/plus/speed */
+        
+        width: auto !important;
+        transform: none !important; /* Mematikan centering paksa agar batas kiri-kanan berfungsi */
+        pointer-events: auto !important; 
+    }
+    
+    #track-title {
+        font-size: 14px !important; 
+        font-weight: 600 !important;
+        margin-bottom: 0 !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        white-space: nowrap !important;
+        display: inline-block !important;
+    }
+    
+    /* Sembunyikan Tulisan "Local File" / Artist */
+    #track-artist {
+        display: none !important;
+    }
+    
+    /* Tombol Love & Plus dipindah ke kanan atas, samping tombol Speed */
+    #full-player-modal .text-center.w-full.max-w-xl .flex.items-center.gap-4 {
+        position: fixed !important;
+        top: 20px !important;
+        right: calc(max(40px, env(safe-area-inset-right)) + 60px) !important;
+        pointer-events: auto !important; /* PENTING agar tombol fungsi! */
+        bottom: auto !important;
+        left: auto !important;
+        margin: 0 !important;
+        justify-content: flex-end !important;
+    }
+    
+    #full-player-modal .text-center.w-full.max-w-xl .flex.items-center.gap-4 button {
+        background: none !important;
+        border: none !important;
+        padding: 4px !important;
+    }
+
+    /* 6. LIMA TOMBOL KONTROL FULL DI TENGAH (Shuffle, Prev, Play, Next, Repeat) */
+    #full-player-modal .flex.items-center.justify-between.relative.w-full {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: auto !important;
+        z-index: 45 !important;
+        justify-content: center !important;
+        gap: 20px !important; 
+    }
+    
+    /* Mengeluarkan isi (tombol-tombol) dari div kiri dan div tengah agar bisa menyatu di parent utama */
+    #full-player-modal .justify-start,
+    #full-player-modal .justify-center.absolute.left-1\/2 {
+        display: contents !important; 
+    }
+    
+    /* Re-order tombol karena dari HTML bawaan kepisah-pisah */
+    #btn-shuffle { order: 1 !important; }
+    #btn-prev { order: 2 !important; }
+    #btn-play-pause { order: 3 !important; }
+    #btn-next { order: 4 !important; }
+    #btn-repeat { 
+        order: 5 !important; 
+        position: relative !important; 
+        right: auto !important;
+    }
+    
+    /* Menyesuaikan proporsi ukuran kelima icon */
+    #btn-play-pause i { font-size: 38px !important; }
+    #btn-prev i, #btn-next i { font-size: 24px !important; }
+    #btn-shuffle i, #btn-repeat i { font-size: 20px !important; }
+
+    /* Sembunyikan bagian volume karena kepenuhan kalau dilandscape */
+    #full-player-modal .volume-wrapper {
+        display: none !important;
+    }
+
+    /* 7. PROGRESS BAR FULL DARI KIRI KE KANAN DI PALING BAWAH */
+    #full-player-modal .max-w-3xl.mx-auto {
+        position: static !important;
+    }
+    
+    #full-player-modal .max-w-3xl.mx-auto > .w-full {
+        position: fixed !important;
+        bottom: 25px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left)) !important;
+        z-index: 40 !important;
+    }
+    
+    #full-player-modal .flex.justify-between.text-xs.text-slate-400 {
+        margin-top: 4px !important;
+    }
 }

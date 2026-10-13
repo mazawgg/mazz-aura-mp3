@@ -2082,4 +2082,99 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
+// ==========================================
+// --- GESTURE CONTROLS (FULL PLAYER MOBILE/TABLET) ---
+// ==========================================
+let playerTouchStartY = 0;
+let playerStartVolume = 0;
+let isRightSideTouch = false;
+let lastTapTime = 0;
+let isVolumeDragging = false;
+
+DOM.fullPlayerModal.addEventListener('touchstart', (e) => {
+    // Abaikan sentuhan jika user memencet tombol atau slider (progress bar)
+    if (e.target.closest('button') || e.target.closest('input')) return;
+
+    const touch = e.touches[0];
+    const screenWidth = window.innerWidth;
+    
+    playerTouchStartY = touch.clientY;
+    playerStartVolume = DOM.audio.volume;
+    
+    // Cek apakah sentuhan ada di separuh kanan layar
+    isRightSideTouch = touch.clientX > screenWidth / 2;
+    isVolumeDragging = false; // Reset status drag
+}, { passive: true });
+
+DOM.fullPlayerModal.addEventListener('touchmove', (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    
+    // Logika Usap Atas/Bawah di Bagian Kanan untuk Volume
+    if (isRightSideTouch) {
+        const touch = e.touches[0];
+        const deltaY = playerTouchStartY - touch.clientY; // Positif jika usap ke atas
+        
+        // Threshold 10px agar tidak bentrok dengan sensitivitas ketukan (tap)
+        if (Math.abs(deltaY) > 10) {
+            isVolumeDragging = true;
+            
+            // Kalkulasi: Usap 200px setara dengan perubahan volume 100% (1.0)
+            let newVol = playerStartVolume + (deltaY / 200);
+            newVol = Math.max(0, Math.min(1, newVol)); // Kunci di batas 0 - 1
+            
+            setVolume(newVol);
+            
+            // Tampilkan Indikator Volume di Tengah Layar
+            if (DOM.volumeIndicator) {
+                const volPct = Math.round(newVol * 100);
+                DOM.volIndicatorText.textContent = volPct + '%';
+
+                if (volPct === 0) DOM.volIndicatorIcon.className = 'ph ph-speaker-x text-4xl text-cyan-400';
+                else if (volPct < 50) DOM.volIndicatorIcon.className = 'ph ph-speaker-low text-4xl text-cyan-400';
+                else DOM.volIndicatorIcon.className = 'ph ph-speaker-high text-4xl text-cyan-400';
+
+                DOM.volumeIndicator.classList.remove('hidden', 'opacity-0');
+                DOM.volumeIndicator.classList.add('flex', 'opacity-100');
+                
+                clearTimeout(volToastTimer);
+                volToastTimer = setTimeout(() => {
+                    DOM.volumeIndicator.classList.remove('opacity-100');
+                    DOM.volumeIndicator.classList.add('opacity-0');
+                    setTimeout(() => DOM.volumeIndicator.classList.add('hidden'), 300);
+                }, 1000);
+            }
+        }
+    }
+}, { passive: true });
+
+DOM.fullPlayerModal.addEventListener('touchend', (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+
+    // Logika Ketuk Ganda (Double Tap) - Hanya jalan jika tidak sedang mengusap volume
+    if (!isVolumeDragging) {
+        const currentTime = Date.now();
+        const tapGap = currentTime - lastTapTime;
+        
+        // Jika rentang antar sentuhan kurang dari 300ms, terhitung Double Tap
+        if (tapGap > 0 && tapGap < 300) {
+            if (isRightSideTouch) {
+                // Double Tap Kanan: Maju 10 Detik
+                if (DOM.audio.duration) {
+                    DOM.audio.currentTime = Math.min(DOM.audio.duration, DOM.audio.currentTime + 10);
+                    showToast(">> +10s");
+                }
+            } else {
+                // Double Tap Kiri: Mundur 10 Detik
+                if (DOM.audio.duration) {
+                    DOM.audio.currentTime = Math.max(0, DOM.audio.currentTime - 10);
+                    showToast("<< -10s");
+                }
+            }
+            lastTapTime = 0; // Reset timer agar tidak triple-tap trigger berulang
+        } else {
+            lastTapTime = currentTime;
+        }
+    }
+});
+
 window.addEventListener('DOMContentLoaded', bootApp);
