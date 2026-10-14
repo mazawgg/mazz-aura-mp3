@@ -1621,21 +1621,48 @@ DOM.modalBtnAddPl.addEventListener('click', () => {
     }
 });
 
-DOM.audio.addEventListener('timeupdate', () => {
-    if (!DOM.audio.duration) return;
-    const pct = (DOM.audio.currentTime / DOM.audio.duration) * 100;
-    DOM.progressBar.value = pct;
-    DOM.miniProgress.style.width = `${pct}%`;
-    DOM.timeCurrent.textContent = formatTime(DOM.audio.currentTime);
-    updateSliderBackground(DOM.progressBar, pct, 100);
-});
+// ==========================================
+// --- LOGIKA PROGRESS BAR (ANTI-BUG MOBILE) ---
+// ==========================================
+let isSeeking = false;
 
+// 1. Saat user MULAI menyentuh/menahan slider
+DOM.progressBar.addEventListener('mousedown', () => isSeeking = true);
+DOM.progressBar.addEventListener('touchstart', () => isSeeking = true, { passive: true });
+
+// 2. Saat user MENGGESER (Mengubah nilai visual secara real-time)
 DOM.progressBar.addEventListener('input', (e) => {
     if (!DOM.audio.duration) return;
-    DOM.audio.currentTime = (e.target.value / 100) * DOM.audio.duration;
+    // JANGAN ubah audio.currentTime di sini agar suara tidak patah-patah.
+    // Cukup perbarui visual warna dan angka detiknya saja.
     updateSliderBackground(DOM.progressBar, e.target.value, 100);
+    DOM.timeCurrent.textContent = formatTime((e.target.value / 100) * DOM.audio.duration);
 });
 
+// 3. Saat jari user DILEPAS dari slider (Terapkan durasinya ke audio)
+const applySeek = () => {
+    isSeeking = false;
+    if (!DOM.audio.duration) return;
+    DOM.audio.currentTime = (DOM.progressBar.value / 100) * DOM.audio.duration;
+};
+DOM.progressBar.addEventListener('mouseup', applySeek);
+DOM.progressBar.addEventListener('touchend', applySeek);
+
+// 4. Update otomatis dari lagu yang berjalan
+DOM.audio.addEventListener('timeupdate', () => {
+    if (!DOM.audio.duration) return;
+    
+    // JIKA USER TIDAK SEDANG MENYENTUH SLIDER, barulah slider di-update otomatis oleh lagu
+    if (!isSeeking) {
+        const pct = (DOM.audio.currentTime / DOM.audio.duration) * 100;
+        DOM.progressBar.value = pct;
+        DOM.timeCurrent.textContent = formatTime(DOM.audio.currentTime);
+        updateSliderBackground(DOM.progressBar, pct, 100);
+    }
+    
+    // Mini player selalu jalan mengikuti lagu, tidak peduli slider utama sedang digeser
+    DOM.miniProgress.style.width = `${(DOM.audio.currentTime / DOM.audio.duration) * 100}%`;
+});
 DOM.audio.addEventListener('loadedmetadata', () => DOM.timeTotal.textContent = formatTime(DOM.audio.duration));
 DOM.audio.addEventListener('ended', () => {
     if (state.repeatMode === 2) {
