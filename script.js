@@ -2504,7 +2504,7 @@ moBtnSpeed?.addEventListener('click', (e) => {
         }
     });
 
-    showToast(`Speed diputar ke: ${currentSpeed}x`);
+    showToast(`Speed ​​set to: ${currentSpeed}x`);
 });
 
 document.querySelectorAll('#btn-play-pause, #btn-next, #btn-prev, #mini-btn-play, #mini-btn-next, #mini-btn-prev').forEach(btn => {
