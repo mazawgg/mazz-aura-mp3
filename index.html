@@ -4,14 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aura | Advanced Audio Player by Mazaw</title>
+    <title>Aura MP3 | By Mazaw</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+
+    <!-- Custom Styles -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
+
+    <!-- PWA Setup -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
 <body>
@@ -92,9 +100,9 @@
     </div>
 
     <!-- Add Tracks to Playlist Modal -->
-    <div id="add-tracks-modal" class="custom-modal-overlay">
+    <div id="add-tracks-modal" class="custom-modal-overlay" style="z-index: 9999;">
         <div
-            class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl flex flex-col max-h-[80vh]">
+            class="glass p-5 rounded-2xl w-full max-w-sm sm:max-w-md mx-4 border border-white/10 shadow-2xl flex flex-col max-h-[50vh] sm:max-h-[75vh]">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-white">Add Tracks</h3>
                 <button id="btn-close-add-tracks" class="text-slate-400 hover:text-white transition-colors">
@@ -117,6 +125,30 @@
                 class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-cyan-500/20">
                 Add to Playlist
             </button>
+        </div>
+    </div>
+
+    <!-- Sleep Timer Modal -->
+    <div id="sleep-timer-modal" class="custom-modal-overlay" style="z-index: 9999;">
+        <div class="glass p-4 sm:p-6 rounded-2xl w-full max-w-md mx-4 border border-white/10 shadow-2xl text-center">
+            <i class="ph ph-timer text-4xl text-cyan-400 mb-2"></i>
+            <h3 class="text-xl font-bold text-white mb-2">Sleep Timer</h3>
+            <p class="text-slate-400 text-sm mb-4">Set time in minutes to stop playback:</p>
+            <div class="flex items-center justify-center gap-3 mb-6">
+                <input type="number" id="custom-timer-input" placeholder="30" min="1"
+                    class="w-24 bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-cyan-500 transition-colors">
+                <span class="text-slate-300 font-medium">minutes</span>
+            </div>
+            <div class="flex flex-col gap-3 mb-3">
+                <button id="btn-start-custom-timer"
+                    class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-cyan-500/20">Start
+                    Timer</button>
+                <button id="btn-cancel-timer"
+                    class="hidden w-full bg-red-600/80 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">Turn
+                    Off Timer</button>
+            </div>
+            <button id="btn-close-timer-modal"
+                class="w-full glass-panel hover:bg-white/10 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition-colors">Close</button>
         </div>
     </div>
 
@@ -145,9 +177,14 @@
                     <span class="sidebar-label">YT to MP3</span>
                 </button>
                 <button data-target="view-equalizer"
-                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    class="nav-item max-lg:hidden flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
                     <i class="ph ph-sliders-horizontal text-xl lg:mr-3 text-emerald-400"></i>
                     <span class="sidebar-label">Equalizer</span>
+                </button>
+                <button data-target="view-settings"
+                    class="nav-item flex items-center px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/5 font-medium">
+                    <i class="ph ph-gear text-xl lg:mr-3 text-slate-400"></i>
+                    <span class="sidebar-label">Settings</span>
                 </button>
             </div>
         </nav>
@@ -168,6 +205,36 @@
                             <input type="text" id="search-input" placeholder="Search tracks..."
                                 class="w-full sm:w-64 glass-panel pl-10 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500 transition-colors">
                         </div>
+                        <!-- Dropdown Sort Kustom -->
+                        <div class="relative inline-block z-[60]">
+                            <button id="sort-dropdown-btn"
+                                class="glass-panel p-2 rounded-xl text-sm focus:outline-none focus:border-cyan-500 text-white transition-colors flex items-center justify-center aspect-square">
+                                <i id="sort-current-label" class="ph ph-funnel"></i>
+                            </button>
+
+                            <div id="sort-menu"
+                                class="hidden absolute top-full mt-2 right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-[999] animate-fade-in w-full min-w-[160px] max-h-60 overflow-y-auto scrollbar-thin">
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-left active-sort"
+                                    data-sort="newest">Newest</button>
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-sort="oldest">Oldest</button>
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-sort="az">A - Z</button>
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-sort="za">Z - A</button>
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-sort="largest">Largest</button>
+                                <button
+                                    class="sort-opt px-4 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-left"
+                                    data-sort="smallest">Smallest</button>
+                            </div>
+                            <input type="hidden" id="sort-val" value="newest">
+                        </div>
                     </div>
                 </header>
 
@@ -182,20 +249,20 @@
                         <span id="selected-count" class="text-xs text-slate-400">0 selected</span>
                     </div>
                     <button id="btn-delete-selected"
-                        class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
-                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Delete Selected</span>
+                        class="btn-del-library p-2 text-slate-400 hover:text-red-400 transition-colors">
+                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline"></span>
                     </button>
                 </div>
 
                 <div class="flex flex-wrap gap-3 mb-8">
                     <label
                         class="cursor-pointer bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
-                        <i class="ph ph-upload-simple text-lg"></i> Import Local Audio
+                        <i class="ph ph-upload-simple text-lg"></i> Import
                         <input type="file" id="file-input" multiple accept="audio/*" class="hidden">
                     </label>
                     <button id="btn-show-url"
                         class="glass-panel glass-hover px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-white">
-                        <i class="ph ph-link text-lg text-violet-400"></i> Add Stream / YouTube URL
+                        <i class="ph ph-link text-lg"></i> Add Stream
                     </button>
                 </div>
 
@@ -247,8 +314,7 @@
                 <div id="playlists-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 <div id="playlist-details" class="hidden mt-8">
                     <div class="flex items-center gap-4 mb-6">
-                        <button id="btn-back-playlists"
-                            class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors">
+                        <button id="btn-back-playlists" class="text-slate-400 hover:text-white">
                             <i class="ph ph-arrow-left text-xl"></i>
                         </button>
                         <h3 id="active-playlist-title" class="text-2xl font-bold text-white">Playlist Name</h3>
@@ -266,9 +332,8 @@
                             <span id="selected-count-playlist" class="text-xs text-slate-400">0 selected</span>
                         </div>
                         <button id="btn-remove-selected-playlist"
-                            class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
-                            <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Remove from
-                                Playlist</span>
+                            class="btn-del-library p-2 text-slate-400 hover:text-red-400 transition-colors">
+                            <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline"></span>
                         </button>
                     </div>
                     <div class="flex flex-col gap-2" id="playlist-tracks-list"></div>
@@ -295,9 +360,8 @@
                         <span id="selected-count-favorites" class="text-xs text-slate-400">0 selected</span>
                     </div>
                     <button id="btn-delete-selected-favorites"
-                        class="bg-red-600/80 hover:bg-red-600 text-white p-1.5 sm:px-4 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5">
-                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline">Remove from
-                            Favorites</span>
+                        class="btn-del-library p-2 text-slate-400 hover:text-red-400 transition-colors">
+                        <i class="ph ph-trash text-base"></i> <span class="hidden sm:inline"></span>
                     </button>
                 </div>
                 <div class="flex flex-col gap-2" id="favorites-list"></div>
@@ -385,7 +449,15 @@
                 </header>
                 <div class="glass-panel rounded-2xl p-6 border border-white/10 max-w-3xl mx-auto">
                     <div class="flex justify-between items-center mb-8">
-                        <span class="text-white font-medium">Presets</span>
+                        <div class="flex items-center gap-3">
+                            <button id="btn-back-eq"
+                                class="lg:hidden text-slate-400 hover:text-white transition-colors flex items-center justify-center"
+                                onclick="switchView('view-settings')" title="Back to Settings">
+                                <i class="ph ph-arrow-left text-xl"></i>
+                            </button>
+                            <span class="text-white font-medium">Presets</span>
+                        </div>
+
                         <div class="relative inline-block">
                             <button id="eq-dropdown-btn"
                                 class="bg-slate-900 border border-white/20 hover:border-cyan-500 text-white text-sm rounded-lg px-4 py-2.5 transition-colors flex items-center justify-between gap-4 min-w-[140px]">
@@ -442,6 +514,53 @@
                     <div class="flex justify-between items-end gap-2 sm:gap-4 py-4" id="eq-bands-container"></div>
                 </div>
             </section>
+
+            <!-- Settings View -->
+            <section id="view-settings" class="view-section p-6 lg:p-10">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-white mb-1">Settings</h2>
+                    <p class="text-slate-400 text-sm">Manage your app preferences and data</p>
+                </header>
+
+                <div class="flex flex-col gap-4 max-w-3xl mx-auto">
+                    <!-- Equalizer Shortcut (Appears Only On Mobile/Tablet) -->
+                    <div id="settings-eq-card"
+                        class="lg:hidden glass-panel glass-hover p-4 rounded-2xl cursor-pointer flex items-center justify-between border border-white/10 transition-all"
+                        onclick="switchView('view-equalizer')">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center text-emerald-400 border border-white/5 shadow-inner">
+                                <i class="ph ph-sliders-horizontal text-2xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-bold text-base">Equalizer</h4>
+                                <p class="text-slate-400 text-xs">Fine-tune your audio experience</p>
+                            </div>
+                        </div>
+                        <i class="ph ph-caret-right text-slate-500 text-xl"></i>
+                    </div>
+
+                    <!-- Data Management -->
+                    <div class="glass-panel p-5 rounded-2xl border border-white/10">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <i class="ph ph-database text-cyan-400 text-xl"></i> Data Management
+                        </h3>
+                        <div class="flex flex-row items-center gap-2">
+                            <button id="btn-backup-data"
+                                class="bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-white border border-white/5 shadow-lg">
+                                <i class="ph ph-download-simple text-lg text-cyan-400"></i> Backup
+                            </button>
+                            <label
+                                class="cursor-pointer bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-white border border-white/5 shadow-lg">
+                                <i class="ph ph-upload-simple text-lg text-violet-400"></i> Restore
+                                <input type="file" id="restore-file-input" accept=".json" class="hidden">
+                            </label>
+                        </div>
+                        <p class="text-slate-500 text-xs mt-3">Export or import your tracks and playlists configuration
+                            as a JSON file.</p>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -473,6 +592,28 @@
         </div>
     </div>
 
+    <!-- Queue Management Modal -->
+    <div id="queue-modal" class="custom-modal-overlay" style="z-index: 9999;">
+        <div
+            class="glass p-5 rounded-2xl w-full max-w-sm sm:max-w-md mx-4 border border-white/10 shadow-2xl flex flex-col max-h-[50vh] sm:max-h-[75vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="ph ph-list-dashes text-cyan-400"></i> Play Queue
+                </h3>
+                <button id="btn-close-queue" class="text-slate-400 hover:text-white transition-colors p-1">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div id="queue-list-container"
+                class="flex flex-col gap-2 overflow-y-auto pr-2 mb-2 flex-grow scrollbar-thin">
+                <!-- Queue rendered via JS -->
+            </div>
+            <div class="text-xs text-slate-500 text-center mt-3 bg-white/5 py-2 rounded-lg">
+                Drag & drop to reorder songs
+            </div>
+        </div>
+    </div>
+
     <!-- Full Player Modal -->
     <div id="full-player-modal" class="glass">
         <div class="bg-mesh opacity-50"></div>
@@ -483,9 +624,8 @@
         </div>
         <div class="w-full h-full flex flex-col p-6 lg:p-10 relative z-10 max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-4 relative z-50">
-                <!-- Tombol Close (Kiri) -->
-                <button id="btn-close-modal"
-                    class="p-2 rounded-full hover:bg-white/10 transition-colors text-white z-10">
+                <!-- Close Button (Left) -->
+                <button id="btn-close-modal" class="text-slate-400 hover:text-white">
                     <i class="ph ph-caret-down text-2xl"></i>
                 </button>
 
@@ -493,27 +633,79 @@
                     class="absolute left-1/2 -translate-x-1/2 text-xs font-medium tracking-widest uppercase text-slate-400 pointer-events-none">Now
                     Playing</span>
 
-                <div class="relative flex items-center justify-center z-10">
-                    <button id="btn-speed"
-                        class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 w-11">1x</button>
+                <div class="relative flex items-center justify-center z-10 gap-2">
+                    <div class="hidden sm:flex landscape-hide items-center gap-2">
+                        <button id="btn-toggle-visualizer"
+                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 flex items-center gap-1"
+                            title="Toggle Visualizer">
+                            <i class="ph ph-waveform text-base"></i>
+                        </button>
+                        <button id="btn-sleep-timer"
+                            class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors px-2 py-1 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 flex items-center gap-1">
+                            <i class="ph ph-timer text-base"></i>
+                            <span id="sleep-timer-display" class="hidden"></span>
+                        </button>
+                        <div class="relative flex items-center justify-center">
+                            <button id="btn-speed"
+                                class="text-xs font-bold text-gray-400 hover:text-cyan-300 transition-colors h-[34px] min-w-[34px] px-2 rounded-lg border border-gray-500/30 hover:bg-cyan-500/10 flex items-center justify-center whitespace-nowrap">1x</button>
 
-                    <div id="speed-menu"
-                        class="hidden absolute top-[130%] right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-[999] animate-fade-in w-16">
-                        <button
-                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                            data-speed="2">2x</button>
-                        <button
-                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                            data-speed="1.5">1.5x</button>
-                        <button
-                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                            data-speed="1.25">1.25x</button>
-                        <button
-                            class="speed-opt px-3 py-2 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-center active-speed"
-                            data-speed="1">1x</button>
-                        <button
-                            class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
-                            data-speed="0.5">0.5x</button>
+                            <div id="speed-menu"
+                                class="hidden absolute top-[130%] right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1 z-[999] animate-fade-in w-16">
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="2">2x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="1.5">1.5x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="1.25">1.25x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-cyan-400 font-bold bg-white/5 hover:bg-white/10 transition-colors w-full text-center active-speed"
+                                    data-speed="1">1x</button>
+                                <button
+                                    class="speed-opt px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors w-full text-center"
+                                    data-speed="0.5">0.5x</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3-Dot Menu Button (Visible Only on Mobile & in Landscape Mode) -->
+                    <div class="relative sm:hidden inline-block z-[70]" id="more-options-container">
+                        <button id="btn-more-options" class="text-slate-400 hover:text-white">
+                            <i class="ph ph-dots-three-vertical text-2xl"></i>
+                            <span id="mo-timer-badge"
+                                class="hidden absolute top-0 right-0 w-2.5 h-2.5 bg-cyan-400 rounded-full animate-pulse border border-slate-900"></span>
+                        </button>
+
+                        <div id="more-options-menu"
+                            class="hidden absolute top-[115%] right-0 bg-slate-800 border border-white/10 rounded-xl shadow-2xl flex-col py-1.5 z-[999] w-48 animate-fade-in">
+                            <button id="mo-btn-vis"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-cyan-400 font-medium hover:bg-white/10 transition-colors text-left w-full">
+                                <i class="ph ph-waveform text-lg"></i> <span id="mo-vis-text">Visualizer: On</span>
+                            </button>
+                            <button id="mo-btn-timer"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left w-full">
+                                <i class="ph ph-timer text-lg"></i> <span id="mo-timer-text">Sleep Timer</span>
+                            </button>
+                            <button id="mo-btn-speed"
+                                class="flex items-center justify-between px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left w-full">
+                                <div class="flex items-center gap-3"><i class="ph ph-gauge text-lg"></i>
+                                    <span>Speed</span>
+                                </div>
+                                <span id="mo-speed-text" class="font-bold text-cyan-400">1x</span>
+                            </button>
+                            <div class="h-px bg-white/10 my-1 hidden landscape-only-mo"></div>
+                            <!-- Queue & Add Playlist only appears in the 3-dot menu when in landscape orientation -->
+                            <button id="mo-btn-queue"
+                                class="hidden items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left w-full landscape-only-mo">
+                                <i class="ph ph-list-dashes text-lg"></i> <span>Play Queue</span>
+                            </button>
+                            <button id="mo-btn-add-pl"
+                                class="hidden items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left w-full landscape-only-mo">
+                                <i class="ph ph-playlist text-lg"></i> <span>Add Playlist</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -542,13 +734,22 @@
                     <p id="track-artist"
                         class="text-slate-400 font-medium text-sm sm:text-base tracking-wide uppercase truncate mb-4">
                         Add media to begin</p>
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-6">
+                        <button id="modal-btn-queue"
+                            class="text-slate-400 hover:text-amber-400 flex items-center justify-center landscape-hide"
+                            title="Play Queue">
+                            <i class="ph ph-list-dashes text-2xl"></i>
+                        </button>
+
                         <button id="modal-btn-fav"
-                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-pink-400">
+                            class="text-slate-400 hover:text-pink-400 flex items-center justify-center"
+                            title="Add to Favorites">
                             <i id="modal-icon-fav" class="ph ph-heart text-2xl"></i>
                         </button>
+
                         <button id="modal-btn-add-pl"
-                            class="p-2.5 rounded-full glass-panel hover:bg-white/10 transition-all text-slate-400 hover:text-cyan-400">
+                            class="text-slate-400 hover:text-cyan-400 flex items-center justify-center landscape-hide"
+                            title="Add to Playlist">
                             <i class="ph ph-plus text-2xl"></i>
                         </button>
                     </div>
@@ -565,11 +766,10 @@
                 <div class="flex items-center justify-between relative w-full">
 
                     <div class="flex items-center gap-2 sm:gap-4 w-1/3 justify-start static sm:relative">
-                        <button id="btn-shuffle"
-                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"><i
+                        <button id="btn-shuffle" class="text-slate-400 hover:text-white"><i
                                 class="ph ph-shuffle text-xl"></i></button>
                         <button id="btn-repeat"
-                            class="text-slate-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 absolute right-0 sm:relative sm:right-auto">
+                            class="text-slate-400 hover:text-white absolute right-0 sm:relative sm:right-auto">
                             <i class="ph ph-repeat text-xl"></i>
                             <span id="repeat-badge"
                                 class="absolute -top-1 -right-1 text-[9px] bg-cyan-500 text-slate-900 font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">1</span>

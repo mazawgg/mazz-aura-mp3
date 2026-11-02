@@ -148,17 +148,27 @@ async function dbOp(storeName, mode, operation) {
     });
 }
 
+let activeToastTimer = null;
+
 function showToast(message, type = 'info') {
+    DOM.toastContainer.innerHTML = '';
+    if (activeToastTimer) clearTimeout(activeToastTimer);
+
     const toast = document.createElement('div');
     toast.className = `toast text-sm text-white`;
     if (type === 'error') toast.style.borderLeftColor = '#ef4444';
     toast.textContent = message;
+
     DOM.toastContainer.appendChild(toast);
+
     setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
+
+    activeToastTimer = setTimeout(() => {
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+        setTimeout(() => {
+            if (DOM.toastContainer.contains(toast)) toast.remove();
+        }, 300);
+    }, 2000);
 }
 
 function formatTime(seconds) {
@@ -218,11 +228,22 @@ function buildEQUI() {
                     o.classList.add('text-slate-300');
                 });
             }
+
+            localStorage.setItem('aura_eq_preset', 'custom');
+            const customVals = Array.from(document.querySelectorAll('.eq-slider')).map(s => parseFloat(s.value));
+            localStorage.setItem('aura_eq_custom_values', JSON.stringify(customVals));
         });
     });
 }
 
 function applyEQPreset(presetName) {
+    if (presetName === 'custom') {
+        document.querySelectorAll('.eq-slider').forEach((slider, idx) => {
+            if (eqFilters[idx]) eqFilters[idx].gain.value = parseFloat(slider.value);
+        });
+        return;
+    }
+    
     const values = eqPresetValues[presetName] || eqPresetValues.flat;
     document.querySelectorAll('.eq-slider').forEach((slider, idx) => {
         slider.value = values[idx];
@@ -247,6 +268,8 @@ eqOpts.forEach(opt => {
         const presetValue = opt.dataset.preset;
         const presetText = opt.textContent;
 
+        localStorage.setItem('aura_eq_preset', presetValue);
+
         eqCurrentLabel.textContent = presetText;
         DOM.eqPresets.value = presetValue;
 
@@ -268,6 +291,42 @@ document.addEventListener('click', (e) => {
     if (eqMenu && !eqMenu.contains(e.target) && e.target !== eqDropdownBtn && !eqDropdownBtn.contains(e.target)) {
         eqMenu.classList.add('hidden');
         eqMenu.classList.remove('flex');
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const btnToggleVis = e.target.closest('#btn-toggle-visualizer') || e.target.closest('#mo-btn-vis');
+    if (btnToggleVis) {
+        isVisualizerEnabled = !isVisualizerEnabled;
+
+        localStorage.setItem('aura_visualizer_state', isVisualizerEnabled);
+
+        const statusText = document.getElementById('visualizer-status');
+        const mainBtnVis = document.getElementById('btn-toggle-visualizer');
+        const moVisBtn = document.getElementById('mo-btn-vis');
+        const moVisText = document.getElementById('mo-vis-text');
+
+        if (isVisualizerEnabled) {
+            mainBtnVis?.classList.replace('text-gray-400', 'text-cyan-400');
+            moVisBtn?.classList.replace('text-slate-300', 'text-cyan-400');
+            if (moVisText) moVisText.textContent = "Visualizer: On";
+
+            statusText.textContent = state.audioContextInitialized ? "Visualizer Active" : "Visualizer";
+            statusText.classList.remove('text-slate-500');
+            statusText.classList.add('text-cyan-300', 'text-cyan-400');
+        } else {
+            mainBtnVis?.classList.replace('text-cyan-400', 'text-gray-400');
+            moVisBtn?.classList.replace('text-cyan-400', 'text-slate-300');
+            if (moVisText) moVisText.textContent = "Visualizer: Off";
+
+            statusText.textContent = "Visualizer Non-Active";
+            statusText.classList.remove('text-cyan-300', 'text-cyan-400');
+            statusText.classList.add('text-slate-500');
+
+            if (canvasCtx && DOM.canvas) {
+                canvasCtx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            }
+        }
     }
 });
 
@@ -299,8 +358,15 @@ function initAudioContext() {
         dataArray = new Uint8Array(bufferLength);
 
         state.audioContextInitialized = true;
-        DOM.visualizerStatus.textContent = "Visualizer Active";
-        DOM.visualizerStatus.classList.add('text-cyan-400');
+
+        if (isVisualizerEnabled) {
+            DOM.visualizerStatus.textContent = "Visualizer Active";
+            DOM.visualizerStatus.classList.add('text-cyan-400');
+        } else {
+            DOM.visualizerStatus.textContent = "Visualizer Non-Active";
+            DOM.visualizerStatus.classList.remove('text-cyan-300', 'text-cyan-400');
+            DOM.visualizerStatus.classList.add('text-slate-500');
+        }
 
         applyEQPreset(DOM.eqPresets.value);
         resizeCanvas();
@@ -321,6 +387,7 @@ window.addEventListener('resize', () => {
 
 let currentHeights = null;
 const canvasCtx = DOM.canvas.getContext('2d');
+let isVisualizerEnabled = true;
 
 function drawVisualizer() {
     requestAnimationFrame(drawVisualizer);
@@ -328,6 +395,11 @@ function drawVisualizer() {
 
     const width = DOM.canvas.width;
     const height = DOM.canvas.height;
+
+    if (!isVisualizerEnabled) {
+        canvasCtx.clearRect(0, 0, width, height);
+        return;
+    }
 
     if (!currentHeights || currentHeights.length !== bufferLength) {
         currentHeights = new Float32Array(bufferLength);
@@ -433,6 +505,8 @@ function switchView(viewId) {
         activeBtn.classList.add('active', 'bg-white/10', 'text-white');
     }
     state.activeView = viewId;
+
+    localStorage.setItem('aura_last_view', viewId);
 }
 
 DOM.navBtns.forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.target)));
@@ -515,11 +589,29 @@ function createTrackHTML(track, context = 'library', playlistId = null) {
 }
 
 function renderLibrary(query = '') {
-    let filtered = state.tracks;
+    let filtered = [...state.tracks];
     if (query) {
         const q = query.toLowerCase();
-        filtered = state.tracks.filter(t => t.name.toLowerCase().includes(q));
+        filtered = filtered.filter(t => t.name.toLowerCase().includes(q));
     }
+
+    const sortVal = document.getElementById('sort-val')?.value || 'newest';
+    filtered.sort((a, b) => {
+        if (sortVal === 'az') return a.name.localeCompare(b.name);
+        if (sortVal === 'za') return b.name.localeCompare(a.name);
+        if (sortVal === 'newest') return b.id - a.id;
+        if (sortVal === 'oldest') return a.id - b.id;
+
+        if (sortVal === 'largest' || sortVal === 'smallest') {
+            const sizeA = a.blob && a.blob.size ? a.blob.size : 0;
+            const sizeB = b.blob && b.blob.size ? b.blob.size : 0;
+
+            return sortVal === 'largest' ? sizeB - sizeA : sizeA - sizeB;
+        }
+
+        return 0;
+    });
+
     if (filtered.length === 0) {
         DOM.libraryList.innerHTML = `<div class="text-center text-slate-500 py-10">No tracks found. Drop audio files or add URL.</div>`;
         updateBatchBarUI(0);
@@ -1220,10 +1312,13 @@ DOM.btnShowUrl.addEventListener('click', () => {
 DOM.btnCheckUrl.addEventListener('click', async () => {
     const url = DOM.urlInput.value.trim();
     if (!url) return;
-    showToast("Checking URL...");
 
-    let title = 'External Stream';
-    let type = 'url';
+    try {
+        new URL(url);
+    } catch (e) {
+        showToast("Failed: Please enter a valid URL.", "error");
+        return;
+    }
     let finalUrl = url;
     let cover = null;
 
@@ -1327,7 +1422,7 @@ DOM.btnDlAddLibOnly.addEventListener('click', async () => {
     switchView('view-home');
 });
 
-async function loadTrack(index) {
+async function loadTrack(index, autoPlay = true) {
     if (index < 0 || index >= state.playbackQueue.length) return;
     state.currentIndex = index;
     const track = state.playbackQueue[index];
@@ -1338,6 +1433,9 @@ async function loadTrack(index) {
             if (track.objectUrl) URL.revokeObjectURL(track.objectUrl);
             track.objectUrl = URL.createObjectURL(track.blob);
             src = track.objectUrl;
+            DOM.audio.crossOrigin = "anonymous";
+        } else {
+            DOM.audio.removeAttribute('crossOrigin');
         }
         DOM.audio.src = src;
         DOM.trackTitle.textContent = track.name;
@@ -1361,7 +1459,13 @@ async function loadTrack(index) {
         refreshAllViews();
         updateMarqueeEffect('mini-title-container', 'mini-title');
         updateMarqueeEffect('modal-title-container', 'track-title');
-        playAudio();
+
+        if (autoPlay) {
+            playAudio();
+        } else {
+            state.isPlaying = false;
+            updatePlayPauseUI();
+        }
     } catch (err) {
         showToast("Error loading track", "error");
     }
@@ -1437,13 +1541,13 @@ DOM.miniPlayer.addEventListener('touchstart', (e) => {
     miniStartY = e.touches[0].clientY;
     isMiniDragging = true;
     hasSwipedMini = false;
-    
+
     DOM.miniPlayer.style.transition = 'none';
-}, {passive: true});
+}, { passive: true });
 
 DOM.miniPlayer.addEventListener('touchmove', (e) => {
     if (!isMiniDragging) return;
-    
+
     miniCurrentY = e.touches[0].clientY;
     const deltaY = miniCurrentY - miniStartY;
 
@@ -1452,12 +1556,12 @@ DOM.miniPlayer.addEventListener('touchmove', (e) => {
         DOM.miniPlayer.style.transform = `translateY(${deltaY}px)`;
         DOM.miniPlayer.style.opacity = 1 - (deltaY / 200);
     }
-}, {passive: true});
+}, { passive: true });
 
 DOM.miniPlayer.addEventListener('touchend', (e) => {
     if (!isMiniDragging) return;
     isMiniDragging = false;
-    
+
     DOM.miniPlayer.style.transition = '';
 
     const deltaY = miniCurrentY - miniStartY;
@@ -1472,14 +1576,14 @@ DOM.miniPlayer.addEventListener('touchend', (e) => {
 
 function closeMiniPlayer() {
     pauseAudio();
-    state.playbackQueue = []; 
+    state.playbackQueue = [];
     state.currentIndex = -1;
-    
+
     DOM.miniPlayer.classList.remove('visible');
     DOM.appContainer.classList.remove('has-mini-player');
-    
+
     setTimeout(() => {
-        DOM.miniPlayer.style.transform = ''; 
+        DOM.miniPlayer.style.transform = '';
         DOM.miniPlayer.style.opacity = '';
     }, 300);
 
@@ -1493,17 +1597,23 @@ function closeMiniPlayer() {
 
 DOM.miniPlayer.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
-    
+
     if (hasSwipedMini) {
-        hasSwipedMini = false; 
+        hasSwipedMini = false;
         return;
     }
 
     DOM.fullPlayerModal.classList.add('open');
+    localStorage.setItem('aura_fullplayer_open', 'true');
+
     if (state.audioContextInitialized) resizeCanvas();
     setTimeout(() => updateMarqueeEffect('modal-title-container', 'track-title'), 100);
 });
-DOM.btnCloseModal.addEventListener('click', () => DOM.fullPlayerModal.classList.remove('open'));
+
+DOM.btnCloseModal.addEventListener('click', () => {
+    DOM.fullPlayerModal.classList.remove('open');
+    localStorage.setItem('aura_fullplayer_open', 'false');
+});
 
 DOM.btnPlayPause.addEventListener('click', togglePlayPause);
 DOM.miniBtnPlay.addEventListener('click', togglePlayPause);
@@ -1552,14 +1662,14 @@ DOM.progressBar.addEventListener('touchend', applySeek);
 
 DOM.audio.addEventListener('timeupdate', () => {
     if (!DOM.audio.duration) return;
-    
+
     if (!isSeeking) {
         const pct = (DOM.audio.currentTime / DOM.audio.duration) * 100;
         DOM.progressBar.value = pct;
         DOM.timeCurrent.textContent = formatTime(DOM.audio.currentTime);
         updateSliderBackground(DOM.progressBar, pct, 100);
     }
-    
+
     DOM.miniProgress.style.width = `${(DOM.audio.currentTime / DOM.audio.duration) * 100}%`;
 });
 DOM.audio.addEventListener('loadedmetadata', () => DOM.timeTotal.textContent = formatTime(DOM.audio.duration));
@@ -1682,7 +1792,19 @@ DOM.btnRepeat.addEventListener('click', () => {
 
 DOM.searchInput.addEventListener('input', (e) => renderLibrary(e.target.value));
 
+document.getElementById('sort-select')?.addEventListener('change', () => {
+    renderLibrary(DOM.searchInput.value);
+});
+
 async function handleFiles(files) {
+    const totalSizeRequired = files.reduce((acc, file) => acc + (file.size || 0), 0);
+
+    const hasEnoughSpace = await checkStorageQuota(totalSizeRequired);
+    if (!hasEnoughSpace) {
+        showToast("Failed: Browser storage is full. Delete local tracks to free up space.", "error");
+        return;
+    }
+
     let addedCount = 0;
     let skippedCount = 0;
     let lastSkippedName = "";
@@ -1765,6 +1887,115 @@ DOM.dndOverlay.addEventListener('drop', (e) => {
     }
 });
 
+async function checkStorageQuota(requiredBytes) {
+    if (navigator.storage && navigator.storage.estimate) {
+        const estimate = await navigator.storage.estimate();
+        const availableBytes = estimate.quota - estimate.usage;
+        return availableBytes > requiredBytes;
+    }
+    return true;
+}
+
+function restoreEQState() {
+    const savedPreset = localStorage.getItem('aura_eq_preset') || 'flat';
+    DOM.eqPresets.value = savedPreset;
+    
+    const eqCurrentLabel = document.getElementById('eq-current-label');
+    const eqOpts = document.querySelectorAll('.eq-opt');
+
+    if (savedPreset === 'custom') {
+        if (eqCurrentLabel) eqCurrentLabel.textContent = 'Custom';
+        eqOpts.forEach(o => {
+            o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+            o.classList.add('text-slate-300');
+        });
+        
+        try {
+            const customVals = JSON.parse(localStorage.getItem('aura_eq_custom_values'));
+            if (customVals && customVals.length === 5) {
+                document.querySelectorAll('.eq-slider').forEach((slider, idx) => {
+                    slider.value = customVals[idx];
+                });
+            }
+        } catch(e) {}
+    } else {
+        const presetBtn = document.querySelector(`.eq-opt[data-preset="${savedPreset}"]`);
+        if (presetBtn) {
+            if (eqCurrentLabel) eqCurrentLabel.textContent = presetBtn.textContent;
+            eqOpts.forEach(o => {
+                o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+                o.classList.add('text-slate-300');
+            });
+            presetBtn.classList.remove('text-slate-300');
+            presetBtn.classList.add('text-cyan-400', 'font-bold', 'bg-white/5', 'active-eq');
+        }
+        
+        const values = eqPresetValues[savedPreset] || eqPresetValues.flat;
+        document.querySelectorAll('.eq-slider').forEach((slider, idx) => {
+            slider.value = values[idx];
+        });
+    }
+}
+
+function restoreSortState() {
+    const savedSort = localStorage.getItem('aura_sort_val') || 'newest';
+    const sortValInput = document.getElementById('sort-val');
+    const sortOpts = document.querySelectorAll('.sort-opt');
+
+    if (sortValInput) sortValInput.value = savedSort;
+
+    sortOpts.forEach(o => {
+        o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-sort');
+        o.classList.add('text-slate-300');
+
+        if (o.dataset.sort === savedSort) {
+            o.classList.remove('text-slate-300');
+            o.classList.add('text-cyan-400', 'font-bold', 'bg-white/5', 'active-sort');
+        }
+    });
+}
+
+function restoreVisualizerState() {
+    const savedState = localStorage.getItem('aura_visualizer_state');
+    
+    if (savedState !== null) {
+        isVisualizerEnabled = savedState === 'true';
+    } else {
+        isVisualizerEnabled = true;
+    }
+
+    const statusText = document.getElementById('visualizer-status');
+    const mainBtnVis = document.getElementById('btn-toggle-visualizer');
+    const moVisBtn = document.getElementById('mo-btn-vis');
+    const moVisText = document.getElementById('mo-vis-text');
+
+    if (isVisualizerEnabled) {
+        mainBtnVis?.classList.replace('text-gray-400', 'text-cyan-400');
+        moVisBtn?.classList.replace('text-slate-300', 'text-cyan-400');
+        if (moVisText) moVisText.textContent = "Visualizer: On";
+        
+        if (statusText) {
+            statusText.textContent = state.audioContextInitialized ? "Visualizer Active" : "Visualizer";
+            statusText.classList.remove('text-slate-500');
+            statusText.classList.add('text-cyan-300', 'text-cyan-400');
+        }
+    } else {
+        mainBtnVis?.classList.replace('text-cyan-400', 'text-gray-400');
+        moVisBtn?.classList.replace('text-cyan-400', 'text-slate-300');
+        if (moVisText) moVisText.textContent = "Visualizer: Off";
+        
+        if (statusText) {
+            statusText.textContent = "Visualizer Non-Active";
+            statusText.classList.remove('text-cyan-300', 'text-cyan-400');
+            statusText.classList.add('text-slate-500');
+        }
+        
+        if (typeof canvasCtx !== 'undefined' && DOM.canvas) {
+            canvasCtx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+        }
+    }
+}
+
 async function bootApp() {
     try {
         await initDB();
@@ -1772,13 +2003,174 @@ async function bootApp() {
         state.playlists = await dbOp('playlists', 'readonly', s => s.getAll());
         buildEQUI();
 
+        restoreEQState();
+        restoreSortState();
+        restoreVisualizerState();
+
         DOM.btnRepeat.classList.add('active-btn');
         DOM.repeatBadge.classList.add('hidden');
 
         refreshAllViews();
-        switchView('view-home');
+
+        const lastView = localStorage.getItem('aura_last_view') || 'view-home';
+        switchView(lastView);
+
+        if (DOM.dlUrlInput) {
+            DOM.dlUrlInput.value = '';
+            toggleInputButtons('dl-url-input', 'btn-paste-dl', 'btn-dl-identify', 'btn-clear-dl-url');
+        }
+        if (DOM.urlInput) {
+            DOM.urlInput.value = '';
+            toggleInputButtons('url-input', 'btn-paste-url', 'btn-check-url', 'btn-clear-url');
+        }
+
+        await restorePlayerState();
     } catch (err) {
         showToast("Failed to load local database", "error");
+    }
+}
+
+let sleepTimerInterval = null;
+let sleepEndTime = 0;
+
+const btnSleepTimer = document.getElementById('btn-sleep-timer');
+const sleepTimerDisplay = document.getElementById('sleep-timer-display');
+const sleepTimerModal = document.getElementById('sleep-timer-modal');
+const btnCancelTimer = document.getElementById('btn-cancel-timer');
+
+btnSleepTimer?.addEventListener('click', () => {
+    sleepTimerModal.classList.add('active');
+    const input = document.getElementById('custom-timer-input');
+    if (input) input.value = '';
+});
+
+document.getElementById('btn-close-timer-modal')?.addEventListener('click', () => {
+    sleepTimerModal.classList.remove('active');
+});
+
+document.getElementById('btn-start-custom-timer')?.addEventListener('click', () => {
+    const inputVal = document.getElementById('custom-timer-input').value;
+    const minutes = parseInt(inputVal) || 30;
+
+    if (minutes <= 0) {
+        showToast("Enter a valid number for minutes", "error");
+        return;
+    }
+
+    startSleepTimer(minutes);
+    sleepTimerModal.classList.remove('active');
+    showToast(`Sleep Timer set for ${minutes} minutes`);
+});
+
+document.querySelectorAll('.btn-set-timer').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const minutes = parseInt(e.target.dataset.time);
+        startSleepTimer(minutes);
+        sleepTimerModal.classList.remove('active');
+        showToast(`Sleep Timer set for ${minutes} minutes`);
+    });
+});
+
+btnCancelTimer?.addEventListener('click', () => {
+    clearSleepTimer();
+    sleepTimerModal.classList.remove('active');
+    showToast("Sleep Timer turned off");
+});
+
+function startSleepTimer(minutes) {
+    clearSleepTimer();
+    sleepEndTime = Date.now() + (minutes * 60000);
+    btnCancelTimer.classList.remove('hidden');
+    sleepTimerDisplay.classList.remove('hidden');
+    btnSleepTimer.classList.add('text-cyan-400');
+
+    document.getElementById('mo-timer-badge')?.classList.remove('hidden');
+    document.getElementById('mo-btn-timer')?.classList.add('text-cyan-400');
+
+    sleepTimerInterval = setInterval(() => {
+        const remaining = sleepEndTime - Date.now();
+        if (remaining <= 0) {
+            clearSleepTimer();
+            pauseAudio();
+            showToast("Sleep Timer ended. Audio paused.");
+        } else {
+            const m = Math.floor(remaining / 60000);
+            const s = Math.floor((remaining % 60000) / 1000);
+            const formattedTime = `${m}:${s.toString().padStart(2, '0')}`;
+            sleepTimerDisplay.textContent = formattedTime;
+            const moTimerText = document.getElementById('mo-timer-text');
+            if (moTimerText) moTimerText.textContent = `Timer: ${formattedTime}`;
+        }
+    }, 1000);
+
+    sleepTimerDisplay.textContent = `${minutes}:00`;
+    const moTimerText = document.getElementById('mo-timer-text');
+    if (moTimerText) moTimerText.textContent = `Timer: ${minutes}:00`;
+}
+
+function clearSleepTimer() {
+    if (sleepTimerInterval) clearInterval(sleepTimerInterval);
+    sleepTimerInterval = null;
+    sleepEndTime = 0;
+    btnCancelTimer.classList.add('hidden');
+    sleepTimerDisplay.classList.add('hidden');
+    sleepTimerDisplay.textContent = "";
+    btnSleepTimer.classList.remove('text-cyan-400');
+
+    document.getElementById('mo-timer-badge')?.classList.add('hidden');
+    document.getElementById('mo-btn-timer')?.classList.remove('text-cyan-400');
+    const moTimerText = document.getElementById('mo-timer-text');
+    if (moTimerText) moTimerText.textContent = "Sleep Timer";
+}
+
+function savePlayerState() {
+    if (state.playbackQueue.length === 0) return;
+    const playerState = {
+        queueIds: state.playbackQueue.map(t => t.id),
+        currentIndex: state.currentIndex,
+        currentTime: DOM.audio.currentTime,
+        volume: DOM.audio.volume
+    };
+    localStorage.setItem('aura_player_state', JSON.stringify(playerState));
+}
+
+DOM.audio.addEventListener('pause', savePlayerState);
+window.addEventListener('beforeunload', savePlayerState);
+
+async function restorePlayerState() {
+    const saved = localStorage.getItem('aura_player_state');
+    if (!saved) return;
+
+    try {
+        const parsed = JSON.parse(saved);
+        if (parsed.volume !== undefined) setVolume(parsed.volume);
+
+        if (parsed.queueIds && parsed.queueIds.length > 0) {
+            state.playbackQueue = parsed.queueIds
+                .map(id => state.tracks.find(t => t.id === id))
+                .filter(Boolean);
+
+            if (state.playbackQueue.length > 0) {
+                let idx = parsed.currentIndex;
+                if (idx >= state.playbackQueue.length) idx = 0;
+
+                await loadTrack(idx, false);
+
+                DOM.audio.addEventListener('loadedmetadata', function restoreTime() {
+                    DOM.audio.currentTime = parsed.currentTime || 0;
+                    DOM.audio.removeEventListener('loadedmetadata', restoreTime);
+                });
+
+                const isFullPlayerOpen = localStorage.getItem('aura_fullplayer_open') === 'true';
+                if (isFullPlayerOpen) {
+                    DOM.fullPlayerModal.classList.add('open');
+                    if (state.audioContextInitialized) resizeCanvas();
+                    setTimeout(() => updateMarqueeEffect('modal-title-container', 'track-title'), 100);
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Gagal memulihkan state player", e);
     }
 }
 
@@ -1892,6 +2284,7 @@ window.addEventListener('keydown', (e) => {
 
     if (e.key === 'Escape') {
         DOM.fullPlayerModal.classList.remove('open');
+        localStorage.setItem('aura_fullplayer_open', 'false');
         DOM.playlistModal.classList.remove('active');
         DOM.addToPlModal.classList.remove('active');
         DOM.deleteConfirmModal.classList.remove('active');
@@ -1979,29 +2372,29 @@ DOM.fullPlayerModal.addEventListener('touchstart', (e) => {
 
     const touch = e.touches[0];
     const screenWidth = window.innerWidth;
-    
+
     playerTouchStartY = touch.clientY;
     playerStartVolume = DOM.audio.volume;
-    
+
     isRightSideTouch = touch.clientX > screenWidth / 2;
     isVolumeDragging = false;
 }, { passive: true });
 
 DOM.fullPlayerModal.addEventListener('touchmove', (e) => {
     if (e.target.closest('button') || e.target.closest('input')) return;
-    
+
     if (isRightSideTouch) {
         const touch = e.touches[0];
         const deltaY = playerTouchStartY - touch.clientY;
-        
+
         if (Math.abs(deltaY) > 10) {
             isVolumeDragging = true;
-            
+
             let newVol = playerStartVolume + (deltaY / 200);
             newVol = Math.max(0, Math.min(1, newVol));
-            
+
             setVolume(newVol);
-            
+
             if (DOM.volumeIndicator) {
                 const volPct = Math.round(newVol * 100);
                 DOM.volIndicatorText.textContent = volPct + '%';
@@ -2012,7 +2405,7 @@ DOM.fullPlayerModal.addEventListener('touchmove', (e) => {
 
                 DOM.volumeIndicator.classList.remove('hidden', 'opacity-0');
                 DOM.volumeIndicator.classList.add('flex', 'opacity-100');
-                
+
                 clearTimeout(volToastTimer);
                 volToastTimer = setTimeout(() => {
                     DOM.volumeIndicator.classList.remove('opacity-100');
@@ -2030,7 +2423,7 @@ DOM.fullPlayerModal.addEventListener('touchend', (e) => {
     if (!isVolumeDragging) {
         const currentTime = Date.now();
         const tapGap = currentTime - lastTapTime;
-        
+
         if (tapGap > 0 && tapGap < 300) {
             if (isRightSideTouch) {
                 if (DOM.audio.duration) {
@@ -2050,4 +2443,294 @@ DOM.fullPlayerModal.addEventListener('touchend', (e) => {
     }
 });
 
+const btnMoreOptions = document.getElementById('btn-more-options');
+const moreOptionsMenu = document.getElementById('more-options-menu');
+
+btnMoreOptions?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOptionsMenu.classList.toggle('hidden');
+    moreOptionsMenu.classList.toggle('flex');
+});
+
+document.addEventListener('click', (e) => {
+    if (moreOptionsMenu && !moreOptionsMenu.contains(e.target) && e.target !== btnMoreOptions && !btnMoreOptions.contains(e.target)) {
+        moreOptionsMenu.classList.add('hidden');
+        moreOptionsMenu.classList.remove('flex');
+    }
+});
+
+document.getElementById('mo-btn-timer')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOptionsMenu.classList.add('hidden');
+    moreOptionsMenu.classList.remove('flex');
+    document.getElementById('btn-sleep-timer')?.click();
+});
+
+document.getElementById('mo-btn-queue')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOptionsMenu.classList.add('hidden');
+    moreOptionsMenu.classList.remove('flex');
+    document.getElementById('modal-btn-queue')?.click();
+});
+
+document.getElementById('mo-btn-add-pl')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOptionsMenu.classList.add('hidden');
+    moreOptionsMenu.classList.remove('flex');
+    document.getElementById('modal-btn-add-pl')?.click();
+});
+
+const moBtnSpeed = document.getElementById('mo-btn-speed');
+const moSpeedText = document.getElementById('mo-speed-text');
+const speedCycleList = [1, 1.25, 1.5, 2, 0.5];
+
+moBtnSpeed?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    let idx = speedCycleList.indexOf(currentSpeed);
+    currentSpeed = speedCycleList[(idx + 1) % speedCycleList.length];
+
+    DOM.audio.playbackRate = currentSpeed;
+
+    const mainBtnSpeed = document.getElementById('btn-speed');
+    if (mainBtnSpeed) mainBtnSpeed.textContent = currentSpeed + 'x';
+    if (moSpeedText) moSpeedText.textContent = currentSpeed + 'x';
+
+    document.querySelectorAll('.speed-opt').forEach(o => {
+        o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-speed');
+        o.classList.add('text-slate-300');
+        if (parseFloat(o.dataset.speed) === currentSpeed) {
+            o.classList.remove('text-slate-300');
+            o.classList.add('text-cyan-400', 'font-bold', 'bg-white/5', 'active-speed');
+        }
+    });
+
+    showToast(`Speed diputar ke: ${currentSpeed}x`);
+});
+
+document.querySelectorAll('#btn-play-pause, #btn-next, #btn-prev, #mini-btn-play, #mini-btn-next, #mini-btn-prev').forEach(btn => {
+    btn.addEventListener('touchend', function () {
+        setTimeout(() => this.blur(), 150);
+    });
+    btn.addEventListener('click', function () {
+        this.blur();
+    });
+});
+
+document.querySelectorAll('.custom-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('active');
+
+            if (overlay.id === 'delete-confirm-modal') {
+                state.deleteContext = null;
+                state.trackToDeleteId = null;
+                state.playlistToEditId = null;
+            }
+        }
+    });
+});
+
 window.addEventListener('DOMContentLoaded', bootApp);
+
+const sortDropdownBtn = document.getElementById('sort-dropdown-btn');
+const sortMenu = document.getElementById('sort-menu');
+const sortValInput = document.getElementById('sort-val');
+const sortOpts = document.querySelectorAll('.sort-opt');
+
+sortDropdownBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sortMenu.classList.toggle('hidden');
+    sortMenu.classList.toggle('flex');
+});
+
+sortOpts.forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const sortValue = opt.dataset.sort;
+
+        if (sortValInput) sortValInput.value = sortValue;
+
+        localStorage.setItem('aura_sort_val', sortValue);
+
+        sortOpts.forEach(o => {
+            o.classList.remove('text-cyan-400', 'font-bold', 'bg-white/5', 'active-sort');
+            o.classList.add('text-slate-300');
+        });
+
+        opt.classList.remove('text-slate-300');
+        opt.classList.add('text-cyan-400', 'font-bold', 'bg-white/5', 'active-sort');
+
+        sortMenu.classList.add('hidden');
+        sortMenu.classList.remove('flex');
+
+        renderLibrary(DOM.searchInput.value);
+    });
+});
+
+document.addEventListener('click', (e) => {
+    if (sortMenu && !sortMenu.contains(e.target) && e.target !== sortDropdownBtn && !sortDropdownBtn.contains(e.target)) {
+        sortMenu.classList.add('hidden');
+        sortMenu.classList.remove('flex');
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const btnQueue = e.target.closest('#modal-btn-queue');
+    const btnClose = e.target.closest('#btn-close-queue');
+    const queueModal = document.getElementById('queue-modal');
+
+    if (btnQueue && queueModal) {
+        e.stopPropagation();
+        renderQueue();
+        queueModal.classList.add('active');
+    }
+
+    if (btnClose && queueModal) {
+        e.stopPropagation();
+        queueModal.classList.remove('active');
+    }
+});
+
+function renderQueue() {
+    const container = document.getElementById('queue-list-container');
+    if (!container) return;
+
+    if (state.playbackQueue.length === 0) {
+        container.innerHTML = `<div class="text-center text-slate-500 py-6 text-sm">Queue is empty. Play some songs first.</div>`;
+        return;
+    }
+
+    container.innerHTML = state.playbackQueue.map((track, index) => {
+        const isActive = index === state.currentIndex;
+        return `
+            <div class="queue-item group flex items-center justify-between p-3 rounded-xl cursor-grab active:cursor-grabbing transition-all ${isActive ? 'bg-slate-800/80 border border-cyan-500/50 shadow-md' : 'glass-panel hover:bg-white/5 border border-transparent'}" 
+                 draggable="true" data-index="${index}">
+                <div class="flex items-center gap-3 overflow-hidden pointer-events-none w-full">
+                    <i class="ph ph-dots-six-vertical text-slate-500 text-lg"></i>
+                    <div class="flex flex-col truncate w-full pr-2">
+                        <span class="text-sm font-semibold truncate ${isActive ? 'text-cyan-400' : 'text-slate-200'}">${track.name}</span>
+                    </div>
+                </div>
+                <div class="flex items-center shrink-0">
+                    ${isActive ? '<i class="ph-fill ph-speaker-high text-cyan-400 text-xl animate-pulse"></i>' : `<button class="btn-remove-queue p-1 text-slate-500 hover:text-red-400 transition-colors" data-index="${index}"><i class="ph ph-x text-lg"></i></button>`}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    attachQueueDragEvents(container);
+}
+
+function attachQueueDragEvents(container) {
+    const items = container.querySelectorAll('.queue-item');
+    let draggedIndex = null;
+
+    items.forEach(item => {
+        item.addEventListener('dblclick', () => {
+            const idx = parseInt(item.dataset.index);
+            if (idx !== state.currentIndex) {
+                loadTrack(idx);
+                renderQueue();
+                if (typeof savePlayerState === 'function') savePlayerState();
+            }
+        });
+
+        item.addEventListener('dragstart', (e) => {
+            draggedIndex = parseInt(item.dataset.index);
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => item.classList.add('opacity-30'), 0);
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('opacity-30');
+            items.forEach(i => i.classList.remove('border-t-2', 'border-b-2', 'border-cyan-500'));
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetIndex = parseInt(item.dataset.index);
+            if (targetIndex !== draggedIndex) {
+                const bounding = item.getBoundingClientRect();
+                const offset = bounding.y + (bounding.height / 2);
+                if (e.clientY - offset > 0) {
+                    item.classList.remove('border-t-2', 'border-cyan-500');
+                    item.classList.add('border-b-2', 'border-cyan-500');
+                } else {
+                    item.classList.remove('border-b-2', 'border-cyan-500');
+                    item.classList.add('border-t-2', 'border-cyan-500');
+                }
+            }
+        });
+
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('border-t-2', 'border-b-2', 'border-cyan-500');
+        });
+
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('border-t-2', 'border-b-2', 'border-cyan-500');
+
+            const targetIndex = parseInt(item.dataset.index);
+            if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+            const bounding = item.getBoundingClientRect();
+            const offset = bounding.y + (bounding.height / 2);
+            let insertIndex = targetIndex;
+
+            if (e.clientY - offset > 0) insertIndex++;
+            if (draggedIndex < insertIndex) insertIndex--;
+
+            const trackToMove = state.playbackQueue.splice(draggedIndex, 1)[0];
+            state.playbackQueue.splice(insertIndex, 0, trackToMove);
+
+            if (state.currentIndex === draggedIndex) {
+                state.currentIndex = insertIndex;
+            } else if (state.currentIndex > draggedIndex && state.currentIndex <= insertIndex) {
+                state.currentIndex--;
+            } else if (state.currentIndex < draggedIndex && state.currentIndex >= insertIndex) {
+                state.currentIndex++;
+            }
+
+            renderQueue();
+            if (typeof savePlayerState === 'function') savePlayerState();
+        });
+    });
+
+    container.querySelectorAll('.btn-remove-queue').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.index);
+            state.playbackQueue.splice(idx, 1);
+            if (state.currentIndex > idx) state.currentIndex--;
+            renderQueue();
+            if (typeof savePlayerState === 'function') savePlayerState();
+        });
+    });
+}
+
+document.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+    alert('This function is disabled to protect copyright.');
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+    }
+
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'i' || e.key === 'j' || e.key === 'c')) {
+        e.preventDefault();
+        return false;
+    }
+
+    if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+        e.preventDefault();
+        return false;
+    }
+
+    if (e.ctrlKey && (e.key === 'S' || e.key === 's')) {
+        e.preventDefault();
+        return false;
+    }
+});
